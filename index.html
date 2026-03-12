@@ -11,8 +11,8 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Google reCAPTCHA v3 (Substitua SUA_CHAVE_SITE_V3 pela sua chave real do painel do Google) -->
-    <script src="https://www.google.com/recaptcha/api.js?render=SUA_CHAVE_SITE_V3"></script>
+    <!-- Google reCAPTCHA v3 (Substitua SUA_CHAVE_SITE_V3 pela sua chave real) -->
+    <script src="https://www.google.com/recaptcha/api.js?render=6Lfcm4csAAAAAOG5_SQLcbR9GY_cGjkU3vzqmVaK"></script>
 
     <style>
         /* Estilos customizados para animações e efeitos 3D */
@@ -53,7 +53,7 @@
             <h1 class="text-2xl font-bold text-slate-900 mb-2">Bem-vindo ao AprovaAí</h1>
             <p class="text-slate-500 text-center mb-8">Faça login para acessar seus resumos, flashcards e o Tutor IA.</p>
             
-            <!-- Botão de Login do Google (Chama a função que executa o reCAPTCHA v3 primeiro) -->
+            <!-- Botão de Login do Google -->
             <button id="google-login-btn" onclick="iniciarLogin()" class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all hover:bg-slate-50 hover:shadow-md">
                 <svg class="w-5 h-5" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -68,7 +68,7 @@
                 <p class="text-xs text-slate-400 font-medium">
                     Protegido de forma invisível pelo reCAPTCHA v3.
                 </p>
-                <p id="login-feedback" class="text-xs font-medium mt-1 text-indigo-600 hidden"></p>
+                <p id="login-feedback" class="text-xs font-medium mt-2 text-indigo-600 hidden"></p>
             </div>
         </div>
     </div>
@@ -163,8 +163,8 @@
                         <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
                             <div class="w-3 h-12 rounded-full bg-emerald-500"></div>
                             <div>
-                                <p class="text-3xl font-bold text-slate-800">48</p>
-                                <p class="text-sm text-slate-500 font-medium">Flashcards Revisados</p>
+                                <p id="dashboard-fc-count" class="text-3xl font-bold text-slate-800">5</p>
+                                <p class="text-sm text-slate-500 font-medium">Flashcards Disponíveis</p>
                             </div>
                         </div>
                     </div>
@@ -196,7 +196,7 @@
                 </section>
 
                 <!-- ABA: TUTOR IA -->
-                <section id="tab-tutor" class="hidden-tab h-[calc(100vh-120px)] md:h-full max-w-4xl mx-auto flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in">
+                <section id="tab-tutor" class="hidden-tab h-[calc(100vh-120px)] md:h-[calc(100vh-80px)] max-w-4xl mx-auto flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in">
                     <div class="bg-indigo-50 border-b border-indigo-100 p-4 flex items-center gap-3 shrink-0">
                         <div class="bg-indigo-600 p-2 rounded-lg text-white">
                             <i data-lucide="bot" class="w-6 h-6"></i>
@@ -225,7 +225,7 @@
 
                     <div class="p-4 bg-white border-t border-slate-100 shrink-0">
                         <form id="chat-form" class="relative flex items-center">
-                            <input type="text" id="chat-input" placeholder="Digite sua dúvida aqui (ex: Me explique fotossíntese)..." class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-full py-3 pl-5 pr-14 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
+                            <input type="text" id="chat-input" placeholder="Digite sua dúvida aqui (ex: Me explique fotossíntese)..." autocomplete="off" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-full py-3 pl-5 pr-14 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
                             <button type="submit" id="chat-submit" class="absolute right-2 p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors">
                                 <i data-lucide="send" class="w-4 h-4 translate-x-[1px] translate-y-[1px]"></i>
                             </button>
@@ -252,7 +252,7 @@
                     <div class="w-full md:w-2/3 space-y-4">
                         <h3 class="text-lg font-bold text-slate-800 mb-2">Suas Anotações Salvas</h3>
                         <div id="notes-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <!-- Anotações dinâmicas -->
+                            <!-- Anotações dinâmicas renderizadas aqui -->
                         </div>
                     </div>
                 </section>
@@ -275,7 +275,7 @@
                             <!-- VERSO -->
                             <div class="absolute w-full h-full backface-hidden bg-indigo-600 rounded-3xl shadow-lg flex flex-col items-center justify-center p-8 text-center rotate-y-180">
                                 <span class="absolute top-4 left-4 text-xs font-bold text-white bg-indigo-500 px-2 py-1 rounded-md">RESPOSTA</span>
-                                <p id="fc-answer" class="text-3xl font-bold text-white">Carregando...</p>
+                                <p id="fc-answer" class="text-2xl font-bold text-white">Carregando...</p>
                             </div>
                         </div>
                     </div>
@@ -317,11 +317,15 @@
         const provider = new GoogleAuthProvider();
 
         window.handleGoogleLogin = async () => {
+            const feedback = document.getElementById('login-feedback');
             try {
                 await signInWithPopup(auth, provider);
             } catch (error) {
                 console.error("Erro no login:", error);
-                alert("Ocorreu um erro ao fazer login com o Google.");
+                feedback.textContent = "Erro ao fazer login. Tente novamente.";
+                feedback.classList.remove('hidden');
+                document.getElementById('google-login-btn').disabled = false;
+                document.getElementById('google-login-btn').classList.remove('opacity-70', 'cursor-wait');
             }
         };
 
@@ -377,40 +381,34 @@
             btn.disabled = true;
             btn.classList.add('opacity-70', 'cursor-wait');
             feedback.textContent = "Verificando segurança...";
-            feedback.classList.remove('hidden');
+            feedback.classList.remove('hidden', 'text-red-500');
+            feedback.classList.add('text-indigo-600');
 
-            // Verifica se o script do reCAPTCHA v3 carregou
             if (typeof grecaptcha !== 'undefined' && grecaptcha.ready) {
                 grecaptcha.ready(async function() {
                     try {
-                        // OBS: Certifique-se de substituir SUA_CHAVE_SITE_V3 no topo do HTML
-                        // pela chave de site correta, ou esta função vai gerar erro.
                         const token = await grecaptcha.execute('SUA_CHAVE_SITE_V3', {action: 'login'});
-                        
-                        // O token foi gerado. Se você tivesse um backend, enviaria o token para validação.
                         console.log("Token reCAPTCHA v3 gerado com sucesso.");
                         feedback.textContent = "Aprovado! Abrindo janela do Google...";
                         window.handleGoogleLogin();
                     } catch (e) {
-                        // FALLBACK: Se a chave estiver inválida ou de teste, não bloqueamos o usuário
                         console.warn("Falha no reCAPTCHA v3 (Chave ausente ou inválida?). Prosseguindo via fallback.", e);
                         feedback.textContent = "Abrindo janela do Google...";
                         window.handleGoogleLogin();
                     }
                 });
             } else {
-                // Script bloqueado por adblocker ou não carregou
                 console.warn("reCAPTCHA não carregado. Prosseguindo sem validação.");
+                feedback.textContent = "Abrindo janela do Google...";
                 window.handleGoogleLogin();
             }
         };
 
         // --- CONFIGURAÇÃO DA API DO GEMINI ---
-        // A chave foi removida pois o ambiente injeta automaticamente no background
-        const apiKey = "gen-lang-client-0248764864"; 
+        const apiKey = ""; // A chave é injetada automaticamente pelo ambiente
 
         async function fetchGeminiWithRetry(payload, retries = 5) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite-preview-09-2025:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             const delays = [1000, 2000, 4000, 8000, 16000];
 
             for (let i = 0; i < retries; i++) {
@@ -551,35 +549,33 @@
             }
         });
 
-        renderChat();
-
         // --- LÓGICA DE ANOTAÇÕES ---
         let notes = [
-            { id: 1, title: 'Resumo História - Revolução Francesa', content: 'Causas: crise econômica, desigualdade social (3 estados). Queda da Bastilha (1789). Declaração dos Direitos do Homem e do Cidadão.' },
-            { id: 2, title: 'Fórmulas de Física - Cinemática', content: 'Velocidade Média: Vm = ΔS / Δt\nAceleração: a = ΔV / Δt\nEquação de Torricelli: V² = V0² + 2aΔS' }
+            { id: 1, title: 'Revolução Francesa', content: 'Início em 1789 com a Queda da Bastilha. Lema: Liberdade, Igualdade e Fraternidade.' },
+            { id: 2, title: 'Fórmula de Bhaskara', content: 'x = (-b ± √(b² - 4ac)) / 2a. Usada para encontrar raízes de uma equação do 2º grau.' }
         ];
-        const notesContainer = document.getElementById('notes-container');
+        
         const noteForm = document.getElementById('note-form');
+        const notesContainer = document.getElementById('notes-container');
 
         function renderNotes() {
             notesContainer.innerHTML = '';
             if (notes.length === 0) {
-                notesContainer.innerHTML = '<p class="text-slate-500 italic col-span-2">Você ainda não tem nenhuma anotação.</p>';
+                notesContainer.innerHTML = '<p class="text-slate-500 text-sm">Nenhuma anotação salva ainda.</p>';
                 return;
             }
 
             notes.forEach(note => {
-                const div = document.createElement('div');
-                div.className = "bg-yellow-50 border border-yellow-200 p-5 rounded-2xl shadow-sm relative group";
-                
-                div.innerHTML = `
-                    <button onclick="deleteNote(${note.id})" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir">
-                        <i data-lucide="x" class="w-4 h-4"></i>
+                const noteEl = document.createElement('div');
+                noteEl.className = 'bg-amber-50 border border-amber-200 p-4 rounded-xl shadow-sm hover:shadow-md transition relative group';
+                noteEl.innerHTML = `
+                    <h4 class="font-bold text-slate-800 mb-1 pr-6">${note.title}</h4>
+                    <p class="text-sm text-slate-600 whitespace-pre-wrap">${note.content}</p>
+                    <button onclick="deleteNote(${note.id})" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
-                    <h4 class="font-bold text-slate-800 mb-2 pr-6">${note.title}</h4>
-                    <p class="text-sm text-slate-700 whitespace-pre-wrap">${note.content}</p>
                 `;
-                notesContainer.appendChild(div);
+                notesContainer.appendChild(noteEl);
             });
             lucide.createIcons();
         }
@@ -589,12 +585,13 @@
             const titleInput = document.getElementById('note-title');
             const contentInput = document.getElementById('note-content');
             
-            notes.unshift({
+            const newNote = {
                 id: Date.now(),
                 title: titleInput.value.trim(),
                 content: contentInput.value.trim()
-            });
+            };
             
+            notes.unshift(newNote); // Adiciona no começo
             titleInput.value = '';
             contentInput.value = '';
             renderNotes();
@@ -603,18 +600,17 @@
         window.deleteNote = function(id) {
             notes = notes.filter(n => n.id !== id);
             renderNotes();
-        };
-
-        renderNotes();
+        }
 
         // --- LÓGICA DE FLASHCARDS ---
         const flashcards = [
-            { q: "Qual a capital do Brasil?", a: "Brasília" },
-            { q: "Qual a fórmula da água?", a: "H2O" },
-            { q: "Quem pintou a Mona Lisa?", a: "Leonardo da Vinci" },
-            { q: "Qual o maior planeta do Sistema Solar?", a: "Júpiter" },
-            { q: "Em que ano o Brasil foi descoberto?", a: "1500" }
+            { q: "O que é a fotossíntese?", a: "Processo pelo qual plantas produzem seu próprio alimento usando luz solar, água e gás carbônico." },
+            { q: "Qual a capital da Austrália?", a: "Camberra." },
+            { q: "Qual a raiz quadrada de 144?", a: "12." },
+            { q: "Quem escreveu 'Dom Casmurro'?", a: "Machado de Assis." },
+            { q: "O que diz a 1ª Lei de Newton?", a: "Um corpo em repouso permanece em repouso e um corpo em movimento permanece em movimento, a menos que uma força atue sobre ele (Inércia)." }
         ];
+
         let currentFcIndex = 0;
         let isFcFlipped = false;
 
@@ -627,6 +623,7 @@
             fcQuestion.textContent = flashcards[currentFcIndex].q;
             fcAnswer.textContent = flashcards[currentFcIndex].a;
             fcCounter.textContent = `${currentFcIndex + 1} / ${flashcards.length}`;
+            document.getElementById('dashboard-fc-count').textContent = flashcards.length;
             
             if (isFcFlipped) {
                 fcInner.classList.add('rotate-y-180');
@@ -646,7 +643,7 @@
             setTimeout(() => {
                 currentFcIndex = (currentFcIndex + 1) % flashcards.length;
                 updateFlashcardUI();
-            }, 150);
+            }, 150); // Pequeno atraso para a animação de desvirar
         }
 
         window.prevCard = function() {
@@ -658,7 +655,11 @@
             }, 150);
         }
 
+        // Inicializações ao carregar
+        renderChat();
+        renderNotes();
         updateFlashcardUI();
+
     </script>
 </body>
 </html>
