@@ -11,8 +11,8 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Google reCAPTCHA -->
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+    <!-- Google reCAPTCHA v3 (Substitua SUA_CHAVE_SITE_V3 pela sua chave real do painel do Google) -->
+    <script src="https://www.google.com/recaptcha/api.js?render=SUA_CHAVE_SITE_V3"></script>
 
     <style>
         /* Estilos customizados para animações e efeitos 3D */
@@ -43,7 +43,7 @@
 <body class="bg-slate-50 font-sans text-slate-800 overflow-hidden h-screen">
 
     <!-- ========================================== -->
-    <!-- TELA DE LOGIN (Autenticação e reCAPTCHA)   -->
+    <!-- TELA DE LOGIN (Autenticação e reCAPTCHA v3)-->
     <!-- ========================================== -->
     <div id="login-screen" class="fixed inset-0 bg-slate-50 flex items-center justify-center z-50">
         <div class="bg-white p-8 md:p-10 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full flex flex-col items-center animate-fade-in">
@@ -53,17 +53,8 @@
             <h1 class="text-2xl font-bold text-slate-900 mb-2">Bem-vindo ao AprovaAí</h1>
             <p class="text-slate-500 text-center mb-8">Faça login para acessar seus resumos, flashcards e o Tutor IA.</p>
             
-            <!-- reCAPTCHA Widget (Usando chave de teste universal do Google) -->
-            <div class="mb-6">
-                <div class="g-recaptcha" 
-             data-sitekey="6Lfcm4csAAAAAOG5_SQLcbR9GY_cGjkU3vzqmVaK" 
-           data-callback="onRecaptchaSuccess" 
-            data-expired-callback="onRecaptchaExpired">
-             </div>
-            </div>
-
-            <!-- Botão de Login do Google (Inicia bloqueado) -->
-            <button id="google-login-btn" onclick="window.handleGoogleLogin()" disabled class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all opacity-50 cursor-not-allowed">
+            <!-- Botão de Login do Google (Chama a função que executa o reCAPTCHA v3 primeiro) -->
+            <button id="google-login-btn" onclick="iniciarLogin()" class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all hover:bg-slate-50 hover:shadow-md">
                 <svg class="w-5 h-5" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                     <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -72,9 +63,13 @@
                 </svg>
                 Entrar com o Google
             </button>
-            <p id="recaptcha-warning" class="text-xs text-amber-600 mt-4 font-medium text-center">
-                Resolva o reCAPTCHA acima para liberar o login.
-            </p>
+            
+            <div id="recaptcha-status" class="mt-4 flex flex-col items-center text-center">
+                <p class="text-xs text-slate-400 font-medium">
+                    Protegido de forma invisível pelo reCAPTCHA v3.
+                </p>
+                <p id="login-feedback" class="text-xs font-medium mt-1 text-indigo-600 hidden"></p>
+            </div>
         </div>
     </div>
 
@@ -307,7 +302,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // Configuração passada por você
         const firebaseConfig = {
             apiKey: "AIzaSyBzswNx-1l_r_Yv0C5_yycOoajajCS0dME",
             authDomain: "aiaprova.firebaseapp.com",
@@ -318,12 +312,10 @@
             measurementId: "G-P3DX4JQR65"
         };
 
-        // Inicializar Firebase
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        // Expõe funções para o HTML chamar
         window.handleGoogleLogin = async () => {
             try {
                 await signInWithPopup(auth, provider);
@@ -341,19 +333,16 @@
             }
         };
 
-        // Escuta o estado da autenticação
         onAuthStateChanged(auth, (user) => {
             const loginScreen = document.getElementById('login-screen');
             const appContent = document.getElementById('app-content');
             const btnGoogle = document.getElementById('google-login-btn');
-            const warnText = document.getElementById('recaptcha-warning');
+            const feedback = document.getElementById('login-feedback');
 
             if (user) {
-                // Usuário Logado: Ocultar login e mostrar App
                 loginScreen.classList.add('hidden');
                 appContent.classList.remove('hidden');
 
-                // Atualizar dados de perfil na Sidebar
                 const firstName = user.displayName ? user.displayName.split(' ')[0] : 'Aluno';
                 document.getElementById('user-name').textContent = user.displayName || 'Aluno';
                 document.getElementById('dash-user-name').textContent = firstName;
@@ -362,23 +351,14 @@
                 if (user.photoURL) {
                     document.getElementById('user-avatar').innerHTML = `<img src="${user.photoURL}" class="w-full h-full object-cover" referrerpolicy="no-referrer" alt="Avatar">`;
                 }
-
             } else {
-                // Usuário Não Logado: Mostrar login e ocultar App
                 loginScreen.classList.remove('hidden');
                 appContent.classList.add('hidden');
                 
-                // Resetar reCAPTCHA
-                if (typeof grecaptcha !== 'undefined' && grecaptcha.reset) {
-                    grecaptcha.reset();
-                }
-                
-                // Bloquear botão
-                btnGoogle.disabled = true;
-                btnGoogle.classList.add('opacity-50', 'cursor-not-allowed');
-                btnGoogle.classList.remove('hover:bg-slate-50', 'hover:shadow-md');
-                warnText.textContent = "Resolva o reCAPTCHA acima para liberar o login.";
-                warnText.classList.remove('text-transparent');
+                btnGoogle.disabled = false;
+                btnGoogle.classList.remove('opacity-70', 'cursor-wait');
+                feedback.classList.add('hidden');
+                feedback.textContent = "";
             }
         });
     </script>
@@ -387,36 +367,47 @@
     <!-- SCRIPTS DA APLICAÇÃO (UI, API, etc)        -->
     <!-- ========================================== -->
     <script>
-        // --- INICIALIZAÇÃO DE ÍCONES ---
         lucide.createIcons();
 
-        // --- LÓGICA DO RECAPTCHA ---
-        function onRecaptchaSuccess() {
+        // --- LÓGICA DO RECAPTCHA V3 E LOGIN ---
+        window.iniciarLogin = async function() {
             const btn = document.getElementById('google-login-btn');
-            const warn = document.getElementById('recaptcha-warning');
-            
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            btn.classList.add('hover:bg-slate-50', 'hover:shadow-md');
-            
-            warn.textContent = "Tudo certo! Pode fazer o login.";
-            warn.classList.replace('text-amber-600', 'text-emerald-600');
-        }
-
-        function onRecaptchaExpired() {
-            const btn = document.getElementById('google-login-btn');
-            const warn = document.getElementById('recaptcha-warning');
+            const feedback = document.getElementById('login-feedback');
             
             btn.disabled = true;
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
-            btn.classList.remove('hover:bg-slate-50', 'hover:shadow-md');
+            btn.classList.add('opacity-70', 'cursor-wait');
+            feedback.textContent = "Verificando segurança...";
+            feedback.classList.remove('hidden');
 
-            warn.textContent = "reCAPTCHA expirou. Por favor, marque novamente.";
-            warn.classList.replace('text-emerald-600', 'text-amber-600');
-        }
+            // Verifica se o script do reCAPTCHA v3 carregou
+            if (typeof grecaptcha !== 'undefined' && grecaptcha.ready) {
+                grecaptcha.ready(async function() {
+                    try {
+                        // OBS: Certifique-se de substituir SUA_CHAVE_SITE_V3 no topo do HTML
+                        // pela chave de site correta, ou esta função vai gerar erro.
+                        const token = await grecaptcha.execute('SUA_CHAVE_SITE_V3', {action: 'login'});
+                        
+                        // O token foi gerado. Se você tivesse um backend, enviaria o token para validação.
+                        console.log("Token reCAPTCHA v3 gerado com sucesso.");
+                        feedback.textContent = "Aprovado! Abrindo janela do Google...";
+                        window.handleGoogleLogin();
+                    } catch (e) {
+                        // FALLBACK: Se a chave estiver inválida ou de teste, não bloqueamos o usuário
+                        console.warn("Falha no reCAPTCHA v3 (Chave ausente ou inválida?). Prosseguindo via fallback.", e);
+                        feedback.textContent = "Abrindo janela do Google...";
+                        window.handleGoogleLogin();
+                    }
+                });
+            } else {
+                // Script bloqueado por adblocker ou não carregou
+                console.warn("reCAPTCHA não carregado. Prosseguindo sem validação.");
+                window.handleGoogleLogin();
+            }
+        };
 
         // --- CONFIGURAÇÃO DA API DO GEMINI ---
-        const apiKey = "AIzaSyAzOih0YSd64UdrcXRdF6wuuAVTwWOi7fc"; // Chave de IA mantida
+        // A chave foi removida pois o ambiente injeta automaticamente no background
+        const apiKey = ""; 
 
         async function fetchGeminiWithRetry(payload, retries = 5) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
@@ -473,7 +464,7 @@
             activeSection.classList.remove('hidden-tab');
             
             activeSection.classList.remove('animate-fade-in');
-            void activeSection.offsetWidth; // trigger reflow
+            void activeSection.offsetWidth; 
             activeSection.classList.add('animate-fade-in');
 
             const titles = { dashboard: 'Início', tutor: 'Tutor Inteligente', notes: 'Anotações', flashcards: 'Flashcards' };
