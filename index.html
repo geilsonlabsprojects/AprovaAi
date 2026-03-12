@@ -1,1 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AprovaAí - Plataforma de Estudos</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- Google reCAPTCHA -->
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+    <style>
+        /* Estilos customizados para animações e efeitos 3D */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        /* Efeitos 3D para o Flashcard */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        
+        /* Ocultar elementos */
+        .hidden-tab { display: none !important; }
+
+        /* Loader */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow { animation: spin 1.5s linear infinite; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 overflow-hidden h-screen">
+
+    <!-- ========================================== -->
+    <!-- TELA DE LOGIN (Autenticação e reCAPTCHA)   -->
+    <!-- ========================================== -->
+    <div id="login-screen" class="fixed inset-0 bg-slate-50 flex items-center justify-center z-50">
+        <div class="bg-white p-8 md:p-10 rounded-3xl shadow-xl border border-slate-100 max-w-md w-full flex flex-col items-center animate-fade-in">
+            <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 mb-6">
+                <i data-lucide="book-open" class="w-8 h-8 stroke-[2.5]"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-900 mb-2">Bem-vindo ao AprovaAí</h1>
+            <p class="text-slate-500 text-center mb-8">Faça login para acessar seus resumos, flashcards e o Tutor IA.</p>
+            
+            <!-- reCAPTCHA Widget (Usando chave de teste universal do Google) -->
+            <div class="mb-6">
+                <div class="g-recaptcha" 
+                     data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" 
+                     data-callback="onRecaptchaSuccess" 
+                     data-expired-callback="onRecaptchaExpired">
+                </div>
+            </div>
+
+            <!-- Botão de Login do Google (Inicia bloqueado) -->
+            <button id="google-login-btn" onclick="window.handleGoogleLogin()" disabled class="w-full flex items-center justify-center gap-3 bg-white border border-slate-300 text-slate-700 px-6 py-3 rounded-xl font-semibold transition-all opacity-50 cursor-not-allowed">
+                <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                Entrar com o Google
+            </button>
+            <p id="recaptcha-warning" class="text-xs text-amber-600 mt-4 font-medium text-center">
+                Resolva o reCAPTCHA acima para liberar o login.
+            </p>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ÁREA PRINCIPAL DA APLICAÇÃO (Oculta)       -->
+    <!-- ========================================== -->
+    <div id="app-content" class="hidden h-full w-full flex">
+        
+        <!-- Overlay Mobile -->
+        <div id="mobile-overlay" class="fixed inset-0 bg-black/50 z-20 hidden md:hidden" onclick="closeSidebar()"></div>
+
+        <!-- Sidebar -->
+        <aside id="sidebar" class="fixed md:relative z-30 w-64 h-full bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ease-in-out -translate-x-full md:translate-x-0">
+            <div class="p-6 flex items-center justify-between">
+                <div class="flex items-center gap-2 text-indigo-600">
+                    <i data-lucide="book-open" class="w-7 h-7 stroke-[2.5]"></i>
+                    <h1 class="text-2xl font-bold tracking-tight">AprovaAí</h1>
+                </div>
+                <button onclick="closeSidebar()" class="md:hidden text-slate-500 hover:text-slate-800">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <nav class="flex-1 px-4 py-4 space-y-2 overflow-y-auto" id="nav-menu">
+                <button onclick="switchTab('dashboard')" class="nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all bg-indigo-50 text-indigo-700 font-medium" data-target="dashboard">
+                    <div class="flex items-center gap-3"><i data-lucide="layout-dashboard" class="w-5 h-5"></i><span>Início</span></div>
+                </button>
+                <button onclick="switchTab('tutor')" class="nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-slate-600 hover:bg-slate-100 hover:text-slate-900" data-target="tutor">
+                    <div class="flex items-center gap-3"><i data-lucide="bot" class="w-5 h-5"></i><span>Tutor IA</span></div>
+                    <span class="text-[10px] uppercase tracking-wider font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">Novo</span>
+                </button>
+                <button onclick="switchTab('notes')" class="nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-slate-600 hover:bg-slate-100 hover:text-slate-900" data-target="notes">
+                    <div class="flex items-center gap-3"><i data-lucide="sticky-note" class="w-5 h-5"></i><span>Anotações</span></div>
+                </button>
+                <button onclick="switchTab('flashcards')" class="nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-slate-600 hover:bg-slate-100 hover:text-slate-900" data-target="flashcards">
+                    <div class="flex items-center gap-3"><i data-lucide="library" class="w-5 h-5"></i><span>Flashcards</span></div>
+                </button>
+            </nav>
+
+            <!-- Perfil do Usuário e Logout -->
+            <div class="p-4 border-t border-slate-100">
+                <div class="flex items-center gap-3 p-2">
+                    <div id="user-avatar" class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold overflow-hidden shrink-0">
+                        AL
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p id="user-name" class="text-sm font-semibold text-slate-800 truncate">Aluno(a)</p>
+                        <p id="user-email" class="text-xs text-slate-500 truncate">Plano Gratuito</p>
+                    </div>
+                    <button onclick="window.logout()" class="p-2 text-slate-400 hover:text-red-500 transition-colors shrink-0" title="Sair do sistema">
+                        <i data-lucide="log-out" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col h-full w-full overflow-hidden relative">
+            <!-- Mobile Header -->
+            <header class="md:hidden bg-white border-b border-slate-200 p-4 flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="text-slate-600">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+                <h2 id="mobile-header-title" class="text-lg font-semibold text-slate-800 capitalize flex-1 text-center pr-8">Início</h2>
+            </header>
+
+            <!-- Scrollable Content -->
+            <div class="flex-1 overflow-y-auto bg-slate-50 p-4 md:p-8" id="content-area">
+                
+                <!-- ABA: DASHBOARD -->
+                <section id="tab-dashboard" class="max-w-5xl mx-auto space-y-8 animate-fade-in">
+                    <header>
+                        <h2 class="text-3xl font-bold text-slate-900">Olá, <span id="dash-user-name">estudante</span>! 👋</h2>
+                        <p class="text-slate-500 mt-1">Aqui está o seu progresso de estudos. O que vamos aprender hoje?</p>
+                    </header>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                            <div class="w-3 h-12 rounded-full bg-blue-500"></div>
+                            <div>
+                                <p class="text-3xl font-bold text-slate-800">4</p>
+                                <p class="text-sm text-slate-500 font-medium">Matérias Estudadas</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                            <div class="w-3 h-12 rounded-full bg-indigo-500"></div>
+                            <div>
+                                <p class="text-3xl font-bold text-slate-800">12</p>
+                                <p class="text-sm text-slate-500 font-medium">Dúvidas Resolvidas</p>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+                            <div class="w-3 h-12 rounded-full bg-emerald-500"></div>
+                            <div>
+                                <p class="text-3xl font-bold text-slate-800">48</p>
+                                <p class="text-sm text-slate-500 font-medium">Flashcards Revisados</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-8 text-white shadow-lg relative overflow-hidden">
+                            <div class="relative z-10 w-full md:w-2/3">
+                                <h3 class="text-2xl font-bold mb-2">Preso em uma matéria?</h3>
+                                <p class="text-indigo-100 mb-6">Nosso Tutor IA com Gemini está pronto para te explicar qualquer assunto passo a passo.</p>
+                                <button onclick="switchTab('tutor')" class="bg-white text-indigo-600 px-6 py-3 rounded-xl font-semibold hover:bg-indigo-50 transition flex items-center gap-2">
+                                    Falar com Tutor IA <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <i data-lucide="bot" class="w-40 h-40 absolute -bottom-10 -right-10 text-white opacity-20"></i>
+                        </div>
+                        <div class="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
+                            <h3 class="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                <i data-lucide="lightbulb" class="w-6 h-6 text-amber-500"></i> Dica de Estudo
+                            </h3>
+                            <p class="text-slate-600 leading-relaxed">
+                                A técnica Pomodoro pode ajudar na sua concentração. Estude por 25 minutos e descanse 5 minutos. Após 4 ciclos, faça uma pausa maior de 15 a 30 minutos.
+                            </p>
+                            <div class="mt-6 flex gap-3">
+                                <button onclick="switchTab('notes')" class="text-indigo-600 font-medium hover:underline text-sm">
+                                    Ver minhas anotações &rarr;
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ABA: TUTOR IA -->
+                <section id="tab-tutor" class="hidden-tab h-[calc(100vh-120px)] md:h-full max-w-4xl mx-auto flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-fade-in">
+                    <div class="bg-indigo-50 border-b border-indigo-100 p-4 flex items-center gap-3 shrink-0">
+                        <div class="bg-indigo-600 p-2 rounded-lg text-white">
+                            <i data-lucide="bot" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-800">Tutor Gemini</h3>
+                            <p class="text-xs text-indigo-600 font-medium flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                                Online e pronto para ajudar
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-6 bg-white">
+                        <!-- Mensagens serão inseridas aqui pelo JS -->
+                    </div>
+
+                    <div id="chat-loading" class="hidden px-4 pb-4">
+                        <div class="flex justify-start">
+                            <div class="bg-slate-100 text-slate-500 rounded-2xl rounded-bl-sm p-4 px-5 border border-slate-200 flex items-center gap-2">
+                                <i data-lucide="loader-2" class="w-4 h-4 animate-spin-slow text-indigo-500"></i>
+                                <span class="text-sm">Pensando...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-white border-t border-slate-100 shrink-0">
+                        <form id="chat-form" class="relative flex items-center">
+                            <input type="text" id="chat-input" placeholder="Digite sua dúvida aqui (ex: Me explique fotossíntese)..." class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-full py-3 pl-5 pr-14 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
+                            <button type="submit" id="chat-submit" class="absolute right-2 p-2 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors">
+                                <i data-lucide="send" class="w-4 h-4 translate-x-[1px] translate-y-[1px]"></i>
+                            </button>
+                        </form>
+                        <p class="text-center text-xs text-slate-400 mt-2">A IA pode cometer erros. Verifique informações importantes.</p>
+                    </div>
+                </section>
+
+                <!-- ABA: ANOTAÇÕES -->
+                <section id="tab-notes" class="hidden-tab max-w-5xl mx-auto animate-fade-in flex flex-col md:flex-row gap-6">
+                    <div class="w-full md:w-1/3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <i data-lucide="sticky-note" class="w-5 h-5 text-indigo-500"></i>
+                            Nova Anotação
+                        </h3>
+                        <form id="note-form" class="space-y-4">
+                            <input type="text" id="note-title" placeholder="Título da anotação..." required class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                            <textarea id="note-content" placeholder="Escreva seu resumo ou tópicos aqui..." rows="6" required class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"></textarea>
+                            <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-medium hover:bg-indigo-700 transition">
+                                Salvar Anotação
+                            </button>
+                        </form>
+                    </div>
+                    <div class="w-full md:w-2/3 space-y-4">
+                        <h3 class="text-lg font-bold text-slate-800 mb-2">Suas Anotações Salvas</h3>
+                        <div id="notes-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <!-- Anotações dinâmicas -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ABA: FLASHCARDS -->
+                <section id="tab-flashcards" class="hidden-tab max-w-3xl mx-auto animate-fade-in flex flex-col items-center">
+                    <div class="text-center mb-8">
+                        <h2 class="text-2xl font-bold text-slate-800">Flashcards de Revisão Rápidos</h2>
+                        <p class="text-slate-500">Clique no cartão para ver a resposta</p>
+                    </div>
+                    
+                    <div class="w-full max-w-md perspective-1000">
+                        <div id="flashcard-inner" class="relative w-full h-64 cursor-pointer transition-transform duration-500 transform-style-3d" onclick="toggleFlashcard()">
+                            <!-- FRENTE -->
+                            <div class="absolute w-full h-full backface-hidden bg-white border-2 border-indigo-100 rounded-3xl shadow-md flex flex-col items-center justify-center p-8 text-center">
+                                <span class="absolute top-4 left-4 text-xs font-bold text-indigo-400 bg-indigo-50 px-2 py-1 rounded-md">PERGUNTA</span>
+                                <p id="fc-question" class="text-2xl font-semibold text-slate-800">Carregando...</p>
+                                <i data-lucide="refresh-cw" class="w-6 h-6 absolute bottom-6 text-slate-300"></i>
+                            </div>
+                            <!-- VERSO -->
+                            <div class="absolute w-full h-full backface-hidden bg-indigo-600 rounded-3xl shadow-lg flex flex-col items-center justify-center p-8 text-center rotate-y-180">
+                                <span class="absolute top-4 left-4 text-xs font-bold text-white bg-indigo-500 px-2 py-1 rounded-md">RESPOSTA</span>
+                                <p id="fc-answer" class="text-3xl font-bold text-white">Carregando...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-6 mt-8">
+                        <button onclick="prevCard()" class="px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 font-medium transition shadow-sm">
+                            Anterior
+                        </button>
+                        <span id="fc-counter" class="text-slate-500 font-medium">1 / 5</span>
+                        <button onclick="nextCard()" class="px-5 py-2.5 bg-indigo-600 border border-indigo-600 rounded-xl text-white hover:bg-indigo-700 font-medium transition shadow-sm">
+                            Próximo
+                        </button>
+                    </div>
+                </section>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- SCRIPT FIREBASE E AUTENTICAÇÃO (MÓDULOS)   -->
+    <!-- ========================================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // Configuração passada por você
+        const firebaseConfig = {
+            apiKey: "AIzaSyBzswNx-1l_r_Yv0C5_yycOoajajCS0dME",
+            authDomain: "aiaprova.firebaseapp.com",
+            projectId: "aiaprova",
+            storageBucket: "aiaprova.firebasestorage.app",
+            messagingSenderId: "1019482191848",
+            appId: "1:1019482191848:web:59b2af9fe2c1af7814165d",
+            measurementId: "G-P3DX4JQR65"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        // Expõe funções para o HTML chamar
+        window.handleGoogleLogin = async () => {
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error("Erro no login:", error);
+                alert("Ocorreu um erro ao fazer login com o Google.");
+            }
+        };
+
+        window.logout = async () => {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error("Erro ao sair:", error);
+            }
+        };
+
+        // Escuta o estado da autenticação
+        onAuthStateChanged(auth, (user) => {
+            const loginScreen = document.getElementById('login-screen');
+            const appContent = document.getElementById('app-content');
+            const btnGoogle = document.getElementById('google-login-btn');
+            const warnText = document.getElementById('recaptcha-warning');
+
+            if (user) {
+                // Usuário Logado: Ocultar login e mostrar App
+                loginScreen.classList.add('hidden');
+                appContent.classList.remove('hidden');
+
+                // Atualizar dados de perfil na Sidebar
+                const firstName = user.displayName ? user.displayName.split(' ')[0] : 'Aluno';
+                document.getElementById('user-name').textContent = user.displayName || 'Aluno';
+                document.getElementById('dash-user-name').textContent = firstName;
+                document.getElementById('user-email').textContent = user.email || '';
+                
+                if (user.photoURL) {
+                    document.getElementById('user-avatar').innerHTML = `<img src="${user.photoURL}" class="w-full h-full object-cover" referrerpolicy="no-referrer" alt="Avatar">`;
+                }
+
+            } else {
+                // Usuário Não Logado: Mostrar login e ocultar App
+                loginScreen.classList.remove('hidden');
+                appContent.classList.add('hidden');
+                
+                // Resetar reCAPTCHA
+                if (typeof grecaptcha !== 'undefined' && grecaptcha.reset) {
+                    grecaptcha.reset();
+                }
+                
+                // Bloquear botão
+                btnGoogle.disabled = true;
+                btnGoogle.classList.add('opacity-50', 'cursor-not-allowed');
+                btnGoogle.classList.remove('hover:bg-slate-50', 'hover:shadow-md');
+                warnText.textContent = "Resolva o reCAPTCHA acima para liberar o login.";
+                warnText.classList.remove('text-transparent');
+            }
+        });
+    </script>
+
+    <!-- ========================================== -->
+    <!-- SCRIPTS DA APLICAÇÃO (UI, API, etc)        -->
+    <!-- ========================================== -->
+    <script>
+        // --- INICIALIZAÇÃO DE ÍCONES ---
+        lucide.createIcons();
+
+        // --- LÓGICA DO RECAPTCHA ---
+        function onRecaptchaSuccess() {
+            const btn = document.getElementById('google-login-btn');
+            const warn = document.getElementById('recaptcha-warning');
+            
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.classList.add('hover:bg-slate-50', 'hover:shadow-md');
+            
+            warn.textContent = "Tudo certo! Pode fazer o login.";
+            warn.classList.replace('text-amber-600', 'text-emerald-600');
+        }
+
+        function onRecaptchaExpired() {
+            const btn = document.getElementById('google-login-btn');
+            const warn = document.getElementById('recaptcha-warning');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            btn.classList.remove('hover:bg-slate-50', 'hover:shadow-md');
+
+            warn.textContent = "reCAPTCHA expirou. Por favor, marque novamente.";
+            warn.classList.replace('text-emerald-600', 'text-amber-600');
+        }
+
+        // --- CONFIGURAÇÃO DA API DO GEMINI ---
+        const apiKey = "AIzaSyAzOih0YSd64UdrcXRdF6wuuAVTwWOi7fc"; // Chave de IA mantida
+
+        async function fetchGeminiWithRetry(payload, retries = 5) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            const delays = [1000, 2000, 4000, 8000, 16000];
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
+                    
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui gerar uma resposta.";
+                } catch (error) {
+                    if (i === retries - 1) throw error;
+                    await new Promise(resolve => setTimeout(resolve, delays[i]));
+                }
+            }
+        }
+
+        // --- LÓGICA DE NAVEGAÇÃO E SIDEBAR ---
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+        const headerTitle = document.getElementById('mobile-header-title');
+
+        window.toggleSidebar = function() {
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
+        window.closeSidebar = function() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.nav-item').forEach(btn => {
+                if(btn.dataset.target === tabId) {
+                    btn.className = "nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all bg-indigo-50 text-indigo-700 font-medium";
+                } else {
+                    btn.className = "nav-item w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all text-slate-600 hover:bg-slate-100 hover:text-slate-900";
+                }
+            });
+
+            ['dashboard', 'tutor', 'notes', 'flashcards'].forEach(id => {
+                document.getElementById(`tab-${id}`).classList.add('hidden-tab');
+            });
+            
+            const activeSection = document.getElementById(`tab-${tabId}`);
+            activeSection.classList.remove('hidden-tab');
+            
+            activeSection.classList.remove('animate-fade-in');
+            void activeSection.offsetWidth; // trigger reflow
+            activeSection.classList.add('animate-fade-in');
+
+            const titles = { dashboard: 'Início', tutor: 'Tutor Inteligente', notes: 'Anotações', flashcards: 'Flashcards' };
+            headerTitle.textContent = titles[tabId];
+
+            window.closeSidebar();
+        }
+
+        // --- LÓGICA DO TUTOR IA (CHAT) ---
+        let chatMessages = [
+            { role: 'model', text: 'Olá! Sou seu Tutor de Inteligência Artificial. Pode me fazer qualquer pergunta sobre Matemática, História, Ciências, ou pedir para eu resumir um texto para você. Como posso te ajudar hoje?' }
+        ];
+        const chatContainer = document.getElementById('chat-messages');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatLoading = document.getElementById('chat-loading');
+        const chatSubmit = document.getElementById('chat-submit');
+        let isChatLoading = false;
+
+        function renderChat() {
+            chatContainer.innerHTML = '';
+            chatMessages.forEach(msg => {
+                const wrapper = document.createElement('div');
+                wrapper.className = `flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`;
+                
+                const bubble = document.createElement('div');
+                bubble.className = `max-w-[85%] md:max-w-[75%] rounded-2xl p-4 shadow-sm ${
+                    msg.role === 'user' 
+                        ? 'bg-indigo-600 text-white rounded-br-sm' 
+                        : 'bg-slate-100 text-slate-800 rounded-bl-sm border border-slate-200'
+                }`;
+                
+                const textNode = document.createElement('p');
+                textNode.className = "whitespace-pre-wrap leading-relaxed text-[15px]";
+                textNode.textContent = msg.text;
+                
+                bubble.appendChild(textNode);
+                wrapper.appendChild(bubble);
+                chatContainer.appendChild(wrapper);
+            });
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            if(!text || isChatLoading) return;
+
+            chatInput.value = '';
+            chatMessages.push({ role: 'user', text });
+            renderChat();
+            
+            isChatLoading = true;
+            chatInput.disabled = true;
+            chatSubmit.disabled = true;
+            chatLoading.classList.remove('hidden');
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            try {
+                const contents = chatMessages.map(msg => ({
+                    role: msg.role === 'model' ? 'model' : 'user',
+                    parts: [{ text: msg.text }]
+                }));
+
+                const payload = {
+                    systemInstruction: {
+                        parts: [{ text: "Você é um tutor educacional gentil, paciente e encorajador. Seu objetivo é ajudar o aluno a entender conceitos, não apenas dar a resposta final. Use analogias simples, formatação clara em tópicos quando útil, e sempre encoraje o aluno." }]
+                    },
+                    contents: contents
+                };
+
+                const aiResponseText = await fetchGeminiWithRetry(payload);
+                chatMessages.push({ role: 'model', text: aiResponseText });
+            } catch (error) {
+                console.error(error);
+                chatMessages.push({ role: 'model', text: "Ocorreu um erro ao conectar com o meu servidor. Por favor, tente perguntar novamente em instantes." });
+            } finally {
+                isChatLoading = false;
+                chatInput.disabled = false;
+                chatSubmit.disabled = false;
+                chatLoading.classList.add('hidden');
+                renderChat();
+                chatInput.focus();
+            }
+        });
+
+        renderChat();
+
+        // --- LÓGICA DE ANOTAÇÕES ---
+        let notes = [
+            { id: 1, title: 'Resumo História - Revolução Francesa', content: 'Causas: crise econômica, desigualdade social (3 estados). Queda da Bastilha (1789). Declaração dos Direitos do Homem e do Cidadão.' },
+            { id: 2, title: 'Fórmulas de Física - Cinemática', content: 'Velocidade Média: Vm = ΔS / Δt\nAceleração: a = ΔV / Δt\nEquação de Torricelli: V² = V0² + 2aΔS' }
+        ];
+        const notesContainer = document.getElementById('notes-container');
+        const noteForm = document.getElementById('note-form');
+
+        function renderNotes() {
+            notesContainer.innerHTML = '';
+            if (notes.length === 0) {
+                notesContainer.innerHTML = '<p class="text-slate-500 italic col-span-2">Você ainda não tem nenhuma anotação.</p>';
+                return;
+            }
+
+            notes.forEach(note => {
+                const div = document.createElement('div');
+                div.className = "bg-yellow-50 border border-yellow-200 p-5 rounded-2xl shadow-sm relative group";
+                
+                div.innerHTML = `
+                    <button onclick="deleteNote(${note.id})" class="absolute top-3 right-3 text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                    <h4 class="font-bold text-slate-800 mb-2 pr-6">${note.title}</h4>
+                    <p class="text-sm text-slate-700 whitespace-pre-wrap">${note.content}</p>
+                `;
+                notesContainer.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        noteForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const titleInput = document.getElementById('note-title');
+            const contentInput = document.getElementById('note-content');
+            
+            notes.unshift({
+                id: Date.now(),
+                title: titleInput.value.trim(),
+                content: contentInput.value.trim()
+            });
+            
+            titleInput.value = '';
+            contentInput.value = '';
+            renderNotes();
+        });
+
+        window.deleteNote = function(id) {
+            notes = notes.filter(n => n.id !== id);
+            renderNotes();
+        };
+
+        renderNotes();
+
+        // --- LÓGICA DE FLASHCARDS ---
+        const flashcards = [
+            { q: "Qual a capital do Brasil?", a: "Brasília" },
+            { q: "Qual a fórmula da água?", a: "H2O" },
+            { q: "Quem pintou a Mona Lisa?", a: "Leonardo da Vinci" },
+            { q: "Qual o maior planeta do Sistema Solar?", a: "Júpiter" },
+            { q: "Em que ano o Brasil foi descoberto?", a: "1500" }
+        ];
+        let currentFcIndex = 0;
+        let isFcFlipped = false;
+
+        const fcInner = document.getElementById('flashcard-inner');
+        const fcQuestion = document.getElementById('fc-question');
+        const fcAnswer = document.getElementById('fc-answer');
+        const fcCounter = document.getElementById('fc-counter');
+
+        function updateFlashcardUI() {
+            fcQuestion.textContent = flashcards[currentFcIndex].q;
+            fcAnswer.textContent = flashcards[currentFcIndex].a;
+            fcCounter.textContent = `${currentFcIndex + 1} / ${flashcards.length}`;
+            
+            if (isFcFlipped) {
+                fcInner.classList.add('rotate-y-180');
+            } else {
+                fcInner.classList.remove('rotate-y-180');
+            }
+        }
+
+        window.toggleFlashcard = function() {
+            isFcFlipped = !isFcFlipped;
+            updateFlashcardUI();
+        }
+
+        window.nextCard = function() {
+            isFcFlipped = false;
+            updateFlashcardUI();
+            setTimeout(() => {
+                currentFcIndex = (currentFcIndex + 1) % flashcards.length;
+                updateFlashcardUI();
+            }, 150);
+        }
+
+        window.prevCard = function() {
+            isFcFlipped = false;
+            updateFlashcardUI();
+            setTimeout(() => {
+                currentFcIndex = (currentFcIndex - 1 + flashcards.length) % flashcards.length;
+                updateFlashcardUI();
+            }, 150);
+        }
+
+        updateFlashcardUI();
+    </script>
+</body>
+</html>
