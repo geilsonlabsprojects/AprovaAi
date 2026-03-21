@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AprovaENEM Premium | Foco e IA</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+            overscroll-behavior-y: none;
+        }
+        
+        /* Ocultar barra de rolagem mas permitir scroll */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Animações de Aba */
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+            animation: slideUpFade 0.4s ease forwards;
+        }
+
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Checkbox customizado */
+        .task-checkbox:checked + label {
+            text-decoration: line-through;
+            color: #94a3b8; /* slate-400 */
+        }
+
+        /* Tela de Carregamento */
+        #loader {
+            transition: opacity 0.5s ease;
+        }
+
+        /* Overlay do Tutorial */
+        .tutorial-highlight {
+            position: relative;
+            z-index: 60;
+            box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.5);
+            border-radius: 0.5rem;
+            background-color: white;
+        }
+        
+        .chat-bubble-ai {
+            border-bottom-left-radius: 0;
+        }
+        .chat-bubble-user {
+            border-bottom-right-radius: 0;
+        }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex overflow-hidden selection:bg-indigo-100 selection:text-indigo-900">
+
+    <!-- Tela de Carregamento -->
+    <div id="loader" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
+        <i class="fa-solid fa-graduation-cap text-indigo-600 text-6xl mb-4 animate-bounce"></i>
+        <h1 class="text-2xl font-bold text-slate-800">Aprova<span class="text-indigo-600">ENEM</span></h1>
+        <p class="text-slate-500 mt-2 font-medium">Conectando aos servidores...</p>
+        <div class="w-48 h-1 bg-slate-100 rounded-full mt-6 overflow-hidden">
+            <div class="h-full bg-indigo-600 rounded-full w-1/2 animate-[pulse_1s_ease-in-out_infinite]"></div>
+        </div>
+    </div>
+
+    <!-- Overlay do Tutorial -->
+    <div id="tutorial-overlay" class="fixed inset-0 bg-slate-900/80 z-50 hidden flex-col items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center relative transform transition-all">
+            <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <h2 id="tutorial-title" class="text-2xl font-bold mb-2">Bem-vindo(a) ao AprovaENEM!</h2>
+            <p id="tutorial-text" class="text-slate-600 mb-8">Sua nova plataforma inteligente de estudos. Vamos fazer um tour rápido pelas ferramentas que vão te ajudar na aprovação.</p>
+            
+            <div class="flex justify-between items-center w-full">
+                <div class="flex space-x-1" id="tutorial-dots">
+                    <div class="w-2 h-2 rounded-full bg-indigo-600 transition-all"></div>
+                    <div class="w-2 h-2 rounded-full bg-slate-200 transition-all"></div>
+                    <div class="w-2 h-2 rounded-full bg-slate-200 transition-all"></div>
+                    <div class="w-2 h-2 rounded-full bg-slate-200 transition-all"></div>
+                </div>
+                <button id="btn-next-tutorial" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+                    Começar
+                </button>
+            </div>
+            <button id="btn-skip-tutorial" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Sidebar Desktop -->
+    <aside class="hidden md:flex flex-col w-64 bg-white border-r border-slate-200 shadow-sm z-40 relative">
+        <div class="p-6 flex items-center">
+            <div class="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center text-xl shadow-lg shadow-indigo-200 mr-3">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <span class="font-extrabold text-xl tracking-tight text-slate-900">Aprova<span class="text-indigo-600">ENEM</span></span>
+        </div>
+
+        <nav class="flex-1 px-4 space-y-2 mt-4">
+            <button onclick="window.switchTab('dashboard')" class="nav-item active w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-900" data-target="dashboard">
+                <i class="fa-solid fa-house w-6 text-lg"></i> Início
+            </button>
+            <button onclick="window.switchTab('pomodoro')" class="nav-item w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-900" data-target="pomodoro">
+                <i class="fa-solid fa-clock w-6 text-lg"></i> Pomodoro
+            </button>
+            <button onclick="window.switchTab('tarefas')" class="nav-item w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-900" data-target="tarefas">
+                <i class="fa-solid fa-list-check w-6 text-lg"></i> Cronograma
+            </button>
+            <button onclick="window.switchTab('tutor')" class="nav-item w-full flex items-center px-4 py-3 rounded-xl text-sm font-semibold transition-all text-slate-500 hover:bg-slate-50 hover:text-slate-900" data-target="tutor">
+                <i class="fa-solid fa-robot w-6 text-lg text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-500"></i> Tutor IA
+                <span class="ml-auto bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[10px] uppercase px-2 py-0.5 rounded-full font-bold">Novo</span>
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-slate-100">
+            <div class="bg-indigo-50 rounded-xl p-4 flex items-center">
+                <div class="w-8 h-8 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-bold mr-3">
+                    <i class="fa-regular fa-user"></i>
+                </div>
+                <div class="text-sm">
+                    <p class="font-semibold text-indigo-900">Estudante</p>
+                    <p class="text-indigo-600 text-xs">Modo Foco</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Conteúdo Principal -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <!-- Header Mobile -->
+        <header class="md:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-center shadow-sm z-30">
+            <div class="flex items-center">
+                <i class="fa-solid fa-graduation-cap text-indigo-600 text-2xl mr-2"></i>
+                <span class="font-extrabold text-lg tracking-tight text-slate-900">Aprova<span class="text-indigo-600">ENEM</span></span>
+            </div>
+        </header>
+
+        <!-- Área de Rolagem das Abas -->
+        <div class="flex-1 overflow-y-auto no-scrollbar p-4 md:p-8 pb-24 md:pb-8 relative">
+            
+            <!-- TAB: DASHBOARD -->
+            <section id="dashboard" class="tab-content active max-w-5xl mx-auto space-y-6">
+                <!-- Banner Premium -->
+                <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-3xl p-8 text-white shadow-xl shadow-indigo-200 relative overflow-hidden">
+                    <div class="relative z-10">
+                        <span class="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-sm border border-white/30 uppercase tracking-wide">Plataforma Inteligente</span>
+                        <h1 class="text-3xl md:text-4xl font-extrabold mt-4 mb-2" id="saudacao">Bom dia!</h1>
+                        <p class="text-indigo-100 text-lg max-w-xl font-medium">Você está a um passo da sua aprovação. Organize suas tarefas, mantenha o foco e use a IA para tirar dúvidas.</p>
+                    </div>
+                    <!-- Elementos decorativos -->
+                    <div class="absolute -right-10 -top-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+                    <div class="absolute right-10 -bottom-10 w-48 h-48 bg-purple-500/30 rounded-full blur-2xl"></div>
+                    <i class="fa-solid fa-rocket absolute right-4 bottom-4 text-white/10 opacity-50" style="font-size: 10rem; transform: rotate(15deg);"></i>
+                </div>
+
+                <!-- Cards Estatísticas / Atalhos -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition cursor-pointer group" onclick="window.switchTab('pomodoro')">
+                        <div class="w-12 h-12 bg-red-50 text-red-500 rounded-xl flex items-center justify-center mb-4 text-xl group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-stopwatch"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-lg">Pomodoro</h3>
+                        <p class="text-slate-400 text-xs mt-1">Iniciar foco</p>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition cursor-pointer group" onclick="window.switchTab('tarefas')">
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center mb-4 text-xl group-hover:scale-110 transition-transform">
+                            <i class="fa-solid fa-list-check"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-lg">Metas</h3>
+                        <p class="text-slate-400 text-xs mt-1" id="dash-task-count">0 pendentes</p>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition cursor-pointer group col-span-2 md:col-span-2 relative overflow-hidden" onclick="window.switchTab('tutor')">
+                        <div class="absolute inset-0 bg-gradient-to-r from-transparent via-purple-50/50 to-indigo-50/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 text-white rounded-xl flex items-center justify-center mb-4 text-xl shadow-lg shadow-indigo-200">
+                            <i class="fa-solid fa-sparkles"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-lg">Tutor Inteligente</h3>
+                        <p class="text-slate-400 text-xs mt-1">Tire dúvidas com o Google Gemini AI</p>
+                    </div>
+                </div>
+
+                <!-- Dica do Dia -->
+                <div class="bg-amber-50 rounded-2xl p-6 border border-amber-100 flex items-start">
+                    <div class="w-10 h-10 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center shrink-0 mr-4 text-lg">
+                        <i class="fa-regular fa-lightbulb"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-amber-900 mb-1">Estratégia TRI</h4>
+                        <p class="text-amber-700 text-sm leading-relaxed">No ENEM, não perca tempo preso em questões muito difíceis. Garanta todas as fáceis primeiro para o algoritmo do TRI não achar que você "chutou" e maximizar sua nota!</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: POMODORO -->
+            <section id="pomodoro" class="tab-content max-w-3xl mx-auto h-full flex flex-col justify-center pb-20">
+                <div class="text-center mb-10">
+                    <span class="bg-red-100 text-red-600 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">Foco Absoluto</span>
+                    <h2 class="text-4xl font-extrabold text-slate-900 mt-4">Técnica Pomodoro</h2>
+                </div>
+
+                <div class="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 p-10 border border-slate-100 text-center relative overflow-hidden">
+                    <!-- Progress Ring Background -->
+                    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] border-[12px] border-slate-50 rounded-full z-0"></div>
+                    
+                    <!-- SVG Progress Ring -->
+                    <svg class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] -rotate-90 z-0" viewBox="0 0 100 100">
+                        <circle id="timer-ring" cx="50" cy="50" r="44" fill="none" stroke="#4f46e5" stroke-width="6" stroke-dasharray="276" stroke-dashoffset="0" stroke-linecap="round" class="transition-all duration-1000 ease-linear" />
+                    </svg>
+
+                    <!-- Modo Atual -->
+                    <div class="flex justify-center space-x-2 mb-12 relative z-10">
+                        <button onclick="window.setTimerMode('pomodoro')" id="btn-mode-pomodoro" class="px-5 py-2.5 rounded-2xl font-bold text-sm transition-all bg-indigo-600 text-white shadow-md shadow-indigo-200">Pomodoro (25m)</button>
+                        <button onclick="window.setTimerMode('shortBreak')" id="btn-mode-break" class="px-5 py-2.5 rounded-2xl font-bold text-sm transition-all bg-slate-100 text-slate-500 hover:bg-slate-200">Pausa (5m)</button>
+                    </div>
+
+                    <!-- Relógio -->
+                    <div class="text-[6rem] leading-none font-extrabold text-slate-800 tracking-tighter mb-12 tabular-nums relative z-10" id="timer-display">
+                        25:00
+                    </div>
+
+                    <!-- Controles -->
+                    <div class="flex justify-center space-x-6 relative z-10">
+                        <button id="btn-start" onclick="window.toggleTimer()" class="w-20 h-20 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 shadow-xl shadow-indigo-200 flex items-center justify-center text-3xl transition-all">
+                            <i class="fa-solid fa-play ml-1" id="icon-play-pause"></i>
+                        </button>
+                        <button onclick="window.resetTimer()" class="w-16 h-16 mt-2 rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 flex items-center justify-center text-xl transition-all">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB: TAREFAS / CRONOGRAMA -->
+            <section id="tarefas" class="tab-content max-w-4xl mx-auto">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-extrabold text-slate-900">Cronograma</h2>
+                        <p class="text-slate-500 mt-1 font-medium">Suas tarefas salvas na nuvem automaticamente.</p>
+                    </div>
+                    <div class="bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-xl flex items-center shadow-sm">
+                        <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 mr-3 font-bold text-sm" id="progress-percent">0%</div>
+                        <span id="task-counter" class="text-indigo-800 font-semibold text-sm">0/0 concluídas</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                    <!-- Formulario Adicionar -->
+                    <div class="p-6 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row gap-3">
+                        <div class="flex-1 relative">
+                            <i class="fa-regular fa-pen-to-square absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
+                            <input type="text" id="task-input" placeholder="O que você precisa estudar?" class="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium text-slate-700 bg-white shadow-sm">
+                        </div>
+                        <div class="flex gap-3">
+                            <select id="task-subject" class="px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-600 bg-white font-medium shadow-sm cursor-pointer appearance-none outline-none">
+                                <option value="geral">📚 Geral</option>
+                                <option value="matematica">📐 Matemática</option>
+                                <option value="natureza">🧪 Natureza</option>
+                                <option value="humanas">🌍 Humanas</option>
+                                <option value="linguagens">📖 Linguagens</option>
+                                <option value="redacao">✍️ Redação</option>
+                            </select>
+                            <button onclick="window.addTask()" class="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95 flex items-center">
+                                <i class="fa-solid fa-plus sm:mr-2"></i> <span class="hidden sm:inline">Add</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Lista de Tarefas -->
+                    <ul id="task-list" class="divide-y divide-slate-100 max-h-[50vh] overflow-y-auto no-scrollbar bg-white">
+                        <!-- Vazio por padrão -->
+                        <li class="p-12 text-center flex flex-col items-center justify-center">
+                            <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-3xl text-slate-300">
+                                <i class="fa-regular fa-clipboard"></i>
+                            </div>
+                            <h3 class="font-bold text-slate-700 text-lg">Nenhuma tarefa ainda</h3>
+                            <p class="text-slate-500 text-sm mt-1 max-w-xs">Adicione sua primeira meta de estudos acima. Elas ficarão salvas no seu Firebase!</p>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- TAB: TUTOR IA (Novo Recurso) -->
+            <section id="tutor" class="tab-content max-w-4xl mx-auto h-full flex flex-col">
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-3xl font-extrabold text-slate-900">Tutor IA</h2>
+                            <span class="bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded border border-purple-200 uppercase">Beta</span>
+                        </div>
+                        <p class="text-slate-500 mt-1 font-medium">Tire dúvidas sobre matérias usando as chaves configuradas.</p>
+                    </div>
+                </div>
+
+                <!-- Chat Container -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200 flex flex-col flex-1 min-h-[500px] overflow-hidden">
+                    
+                    <!-- Mensagens -->
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
+                        <!-- Mensagem Inicial IA -->
+                        <div class="flex items-start max-w-[85%]">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shrink-0 mr-3 shadow-md">
+                                <i class="fa-solid fa-robot"></i>
+                            </div>
+                            <div class="bg-white border border-slate-100 p-4 rounded-2xl chat-bubble-ai shadow-sm text-slate-700 text-sm leading-relaxed font-medium">
+                                Olá! Sou seu Tutor Inteligente integrado ao Google Gemini. Suas chaves de API estão sendo carregadas do Remote Config. Como posso ajudar com seus estudos para o ENEM hoje?
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Aviso de API Key -->
+                    <div id="api-key-warning" class="hidden bg-amber-50 border-t border-amber-200 p-3 px-6 text-sm text-amber-800 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="fa-solid fa-triangle-exclamation mr-2"></i>
+                            <span>Chave 'google_api_key_1' não encontrada no Firebase Remote Config. O chat pode não funcionar.</span>
+                        </div>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="p-4 bg-white border-t border-slate-100">
+                        <div class="relative flex items-end bg-slate-50 border border-slate-200 rounded-2xl focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all shadow-inner overflow-hidden p-2">
+                            <textarea id="chat-input" rows="1" placeholder="Ex: Me explique o que é Revolução Industrial..." class="w-full bg-transparent border-none focus:ring-0 resize-none py-2 px-3 text-slate-700 max-h-32 text-sm md:text-base outline-none no-scrollbar" style="min-height: 44px;"></textarea>
+                            <button id="btn-send-chat" class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 transition-colors shadow-md shrink-0 mb-1 mr-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <i class="fa-solid fa-paper-plane text-sm relative right-[1px]"></i>
+                            </button>
+                        </div>
+                        <p class="text-center text-[10px] text-slate-400 mt-2 font-medium">A IA pode cometer erros. Verifique as informações importantes.</p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="md:hidden fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around items-center pb-safe z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+        <button onclick="window.switchTab('dashboard')" class="nav-item active flex flex-col items-center py-3 px-4 flex-1 transition-colors text-slate-400" data-target="dashboard">
+            <i class="fa-solid fa-house text-xl mb-1"></i>
+            <span class="text-[10px] font-bold">Início</span>
+        </button>
+        <button onclick="window.switchTab('pomodoro')" class="nav-item flex flex-col items-center py-3 px-4 flex-1 transition-colors text-slate-400" data-target="pomodoro">
+            <i class="fa-solid fa-clock text-xl mb-1"></i>
+            <span class="text-[10px] font-bold">Foco</span>
+        </button>
+        <button onclick="window.switchTab('tarefas')" class="nav-item flex flex-col items-center py-3 px-4 flex-1 transition-colors text-slate-400" data-target="tarefas">
+            <i class="fa-solid fa-list-check text-xl mb-1"></i>
+            <span class="text-[10px] font-bold">Metas</span>
+        </button>
+        <button onclick="window.switchTab('tutor')" class="nav-item flex flex-col items-center py-3 px-4 flex-1 transition-colors text-slate-400" data-target="tutor">
+            <i class="fa-solid fa-robot text-xl mb-1 text-purple-400"></i>
+            <span class="text-[10px] font-bold text-purple-500">IA</span>
+        </button>
+    </nav>
+
+    <!-- App Scripts (Firebase & Logic) -->
+    <script type="module">
+        // Importações do Firebase SDK v11
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getRemoteConfig, fetchAndActivate, getString } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-remote-config.js";
+
+        // CONFIGURAÇÃO DO USUÁRIO
+        const firebaseConfig = {
+            apiKey: "AIzaSyBLr84FdiPT-R1RIVV7Doo7lr16khInur8",
+            authDomain: "aprovaenem-api.firebaseapp.com",
+            projectId: "aprovaenem-api",
+            storageBucket: "aprovaenem-api.firebasestorage.app",
+            messagingSenderId: "717749759571",
+            appId: "1:717749759571:web:31f9b85900334fad9c60a6",
+            measurementId: "G-9Q225QMSVD"
+        };
+
+        // App ID para as regras de path exigidas
+        const APP_ID = typeof __app_id !== 'undefined' ? __app_id : 'aprova-enem-web';
+
+        // Inicialização Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const remoteConfig = getRemoteConfig(app);
+
+        // Configuração Remote Config para Dev (0 delay)
+        remoteConfig.settings.minimumFetchIntervalMillis = 0; 
+        
+        let currentUser = null;
+        let geminiApiKey = "";
+        let tasksUnsubscribe = null;
+
+        // --- SISTEMA DE NAVEGAÇÃO UI ---
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabId).classList.add('active');
+
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if(item.getAttribute('data-target') === tabId) {
+                    item.classList.add('active');
+                    // Estilo Mobile
+                    if(item.parentElement.tagName === 'NAV' && item.parentElement.classList.contains('fixed')) {
+                        item.classList.add('text-indigo-600');
+                        item.classList.remove('text-slate-400');
+                    } else {
+                        // Estilo Desktop
+                        item.classList.add('bg-indigo-50', 'text-indigo-700');
+                        item.classList.remove('text-slate-500', 'hover:bg-slate-50', 'hover:text-slate-900');
+                    }
+                } else {
+                    item.classList.remove('active');
+                    // Estilo Mobile
+                    if(item.parentElement.tagName === 'NAV' && item.parentElement.classList.contains('fixed')) {
+                        item.classList.remove('text-indigo-600');
+                        item.classList.add('text-slate-400');
+                    } else {
+                         // Estilo Desktop
+                        item.classList.remove('bg-indigo-50', 'text-indigo-700');
+                        item.classList.add('text-slate-500', 'hover:bg-slate-50', 'hover:text-slate-900');
+                    }
+                }
+            });
+        };
+
+        // --- INICIALIZAÇÃO E AUTENTICAÇÃO ---
+        async function initApp() {
+            try {
+                // 1. Iniciar Autenticação Anônima (Obrigatório para segurança do DB)
+                await signInAnonymously(auth);
+
+                // 2. Tentar buscar chaves do Remote Config
+                try {
+                    await fetchAndActivate(remoteConfig);
+                    geminiApiKey = getString(remoteConfig, 'google_api_key_1');
+                    
+                    if(!geminiApiKey) {
+                        document.getElementById('api-key-warning').classList.remove('hidden');
+                    }
+                } catch(rcError) {
+                    console.log("Erro ao buscar remote config, usando vazio", rcError);
+                }
+
+                // Listener de estado da conta
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUser = user;
+                        // Remover loader
+                        document.getElementById('loader').style.opacity = '0';
+                        setTimeout(() => document.getElementById('loader').remove(), 500);
+
+                        // Checar e mostrar tutorial
+                        checkTutorial(user.uid);
+                        
+                        // Iniciar listener de tarefas do Firestore
+                        loadTasks(user.uid);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Erro fatal ao inicializar Firebase", error);
+                document.getElementById('loader').innerHTML = `<h2 class="text-red-500 text-xl font-bold">Erro de Conexão</h2><p class="text-slate-500 text-sm mt-2">${error.message}</p>`;
+            }
+        }
+
+        // Iniciar
+        initApp();
+
+        // --- SISTEMA DE TUTORIAL (Onboarding) ---
+        let currentTutorialStep = 0;
+        const tutorialSteps = [
+            { title: "Bem-vindo(a) ao AprovaENEM!", text: "Sua plataforma definitiva para organizar estudos.", target: "" },
+            { title: "Mantenha o Foco", text: "Use o timer Pomodoro para estudar em blocos e não cansar a mente.", target: "dashboard" },
+            { title: "Suas Metas Salvas", text: "Suas tarefas agora são salvas na nuvem com segurança usando o Firebase.", target: "tarefas" },
+            { title: "Tutor IA (Novo)", text: "Tire dúvidas complexas na hora usando a Inteligência Artificial integrada.", target: "tutor" }
+        ];
+
+        async function checkTutorial(userId) {
+            // Path oficial: /artifacts/{appId}/users/{userId}/profile/data
+            const profileRef = doc(db, 'artifacts', APP_ID, 'users', userId, 'profile', 'data');
+            const snap = await getDoc(profileRef);
+            
+            if (!snap.exists() || !snap.data().tutorialCompleted) {
+                showTutorial();
+            }
+        }
+
+        function showTutorial() {
+            const overlay = document.getElementById('tutorial-overlay');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+            updateTutorialUI();
+        }
+
+        async function closeTutorial() {
+            const overlay = document.getElementById('tutorial-overlay');
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+            
+            // Salvar no Firebase que completou
+            if(currentUser) {
+                const profileRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'profile', 'data');
+                await setDoc(profileRef, { tutorialCompleted: true }, { merge: true });
+            }
+        }
+
+        function updateTutorialUI() {
+            const step = tutorialSteps[currentTutorialStep];
+            document.getElementById('tutorial-title').innerText = step.title;
+            document.getElementById('tutorial-text').innerText = step.text;
+            
+            // Update dots
+            const dots = document.getElementById('tutorial-dots').children;
+            for(let i=0; i<dots.length; i++) {
+                if(i === currentTutorialStep) {
+                    dots[i].classList.replace('bg-slate-200', 'bg-indigo-600');
+                    dots[i].classList.add('w-4');
+                } else {
+                    dots[i].classList.replace('bg-indigo-600', 'bg-slate-200');
+                    dots[i].classList.remove('w-4');
+                }
+            }
+
+            const btnNext = document.getElementById('btn-next-tutorial');
+            if(currentTutorialStep === tutorialSteps.length - 1) {
+                btnNext.innerText = "Entendi, vamos lá!";
+                btnNext.onclick = closeTutorial;
+            } else {
+                btnNext.innerText = "Próximo";
+                btnNext.onclick = () => {
+                    currentTutorialStep++;
+                    updateTutorialUI();
+                };
+            }
+        }
+
+        document.getElementById('btn-skip-tutorial').onclick = closeTutorial;
+
+
+        // --- SISTEMA DE TAREFAS (FIRESTORE SYNC) ---
+        const subjectColors = {
+            'geral': 'bg-slate-100 text-slate-700',
+            'matematica': 'bg-blue-100 text-blue-700',
+            'natureza': 'bg-emerald-100 text-emerald-700',
+            'humanas': 'bg-amber-100 text-amber-700',
+            'linguagens': 'bg-rose-100 text-rose-700',
+            'redacao': 'bg-purple-100 text-purple-700'
+        };
+
+        const subjectIcons = {
+            'geral': '📚', 'matematica': '📐', 'natureza': '🧪', 
+            'humanas': '🌍', 'linguagens': '📖', 'redacao': '✍️'
+        };
+
+        function loadTasks(userId) {
+            const tasksRef = collection(db, 'artifacts', APP_ID, 'users', userId, 'tasks');
+            
+            if (tasksUnsubscribe) tasksUnsubscribe();
+
+            tasksUnsubscribe = onSnapshot(tasksRef, (snapshot) => {
+                const tasks = [];
+                snapshot.forEach(doc => {
+                    tasks.push({ id: doc.id, ...doc.data() });
+                });
+                // Ordenar: incompletas primeiro, depois por data de criação
+                tasks.sort((a, b) => {
+                    if (a.completed === b.completed) return b.createdAt - a.createdAt;
+                    return a.completed ? 1 : -1;
+                });
+                renderTasksUI(tasks);
+            }, (error) => {
+                console.error("Erro ao escutar tarefas:", error);
+            });
+        }
+
+        window.addTask = async function() {
+            if (!currentUser) return;
+            
+            const input = document.getElementById('task-input');
+            const subject = document.getElementById('task-subject').value;
+            const text = input.value.trim();
+            
+            if (text !== "") {
+                const tasksRef = collection(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'tasks');
+                const docRef = doc(tasksRef, Date.now().toString()); // Usando timestamp como ID para ordem
+                
+                await setDoc(docRef, {
+                    text: text,
+                    subject: subject,
+                    completed: false,
+                    createdAt: Date.now()
+                });
+                
+                input.value = "";
+            }
+        };
+
+        window.toggleTaskFirebase = async function(id, currentStatus) {
+            if (!currentUser) return;
+            const taskRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'tasks', id);
+            await setDoc(taskRef, { completed: !currentStatus }, { merge: true });
+        };
+
+        window.deleteTaskFirebase = async function(id) {
+            if (!currentUser) return;
+            const taskRef = doc(db, 'artifacts', APP_ID, 'users', currentUser.uid, 'tasks', id);
+            await deleteDoc(taskRef);
+        };
+
+        // Permite adicionar com "Enter"
+        document.getElementById('task-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') window.addTask();
+        });
+
+        function renderTasksUI(tasks) {
+            const list = document.getElementById('task-list');
+            const counter = document.getElementById('task-counter');
+            const progress = document.getElementById('progress-percent');
+            const dashCounter = document.getElementById('dash-task-count');
+            
+            list.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                list.innerHTML = `
+                    <li class="p-12 text-center flex flex-col items-center justify-center fade-in">
+                        <div class="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-4 text-3xl text-slate-300">
+                            <i class="fa-regular fa-clipboard"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-700 text-lg">Nenhuma tarefa ainda</h3>
+                        <p class="text-slate-500 text-sm mt-1 max-w-xs">Adicione sua primeira meta de estudos acima. Elas ficarão salvas no seu Firebase!</p>
+                    </li>
+                `;
+                counter.innerText = "0/0 concluídas";
+                progress.innerText = "0%";
+                dashCounter.innerText = "0 pendentes";
+                return;
+            }
+
+            let completedCount = 0;
+
+            tasks.forEach(task => {
+                if(task.completed) completedCount++;
+
+                const li = document.createElement('li');
+                li.className = `p-4 flex items-center justify-between hover:bg-slate-50 transition-all duration-300 ${task.completed ? 'opacity-60 bg-slate-50/50' : ''}`;
+                
+                li.innerHTML = `
+                    <div class="flex items-center flex-1">
+                        <div class="relative flex items-center justify-center">
+                            <input type="checkbox" id="task-${task.id}" ${task.completed ? 'checked' : ''} onchange="window.toggleTaskFirebase('${task.id}', ${task.completed})" class="task-checkbox appearance-none w-6 h-6 border-2 border-slate-300 rounded-lg checked:bg-indigo-600 checked:border-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1 cursor-pointer transition-all shrink-0">
+                            <i class="fa-solid fa-check absolute text-white text-xs pointer-events-none ${task.completed ? 'opacity-100' : 'opacity-0'} transition-opacity"></i>
+                        </div>
+                        <div class="ml-4 flex flex-col sm:flex-row sm:items-center">
+                            <label for="task-${task.id}" class="text-slate-700 font-semibold cursor-pointer transition-all ${task.completed ? 'line-through text-slate-400' : ''}">
+                                ${task.text}
+                            </label>
+                            <span class="mt-1 sm:mt-0 sm:ml-3 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 w-max ${subjectColors[task.subject]}">
+                                <span>${subjectIcons[task.subject]}</span>
+                                <span class="uppercase tracking-wider">${task.subject}</span>
+                            </span>
+                        </div>
+                    </div>
+                    <button onclick="window.deleteTaskFirebase('${task.id}')" class="text-slate-300 hover:text-red-500 hover:bg-red-50 w-8 h-8 rounded-lg transition-all p-1 focus:outline-none flex items-center justify-center ml-2" title="Remover meta">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                `;
+                list.appendChild(li);
+            });
+
+            counter.innerText = `${completedCount}/${tasks.length} concluídas`;
+            const percentage = Math.round((completedCount / tasks.length) * 100);
+            progress.innerText = `${percentage}%`;
+            
+            const pending = tasks.length - completedCount;
+            dashCounter.innerText = `${pending} pendente${pending !== 1 ? 's' : ''}`;
+        }
+
+
+        // --- SISTEMA POMODORO (Visual Aprimorado) ---
+        let timer;
+        let timeLeft = 25 * 60;
+        let totalTime = 25 * 60;
+        let isRunning = false;
+        let currentMode = 'pomodoro'; 
+
+        const display = document.getElementById('timer-display');
+        const playIcon = document.getElementById('icon-play-pause');
+        const timerRing = document.getElementById('timer-ring');
+        const CIRCUMFERENCE = 2 * Math.PI * 44; // r=44 do SVG
+
+        timerRing.style.strokeDasharray = CIRCUMFERENCE;
+
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            display.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Atualizar anel SVG
+            const progress = timeLeft / totalTime;
+            const dashoffset = CIRCUMFERENCE * (1 - progress);
+            timerRing.style.strokeDashoffset = dashoffset;
+        }
+
+        window.setTimerMode = function(mode) {
+            clearInterval(timer);
+            isRunning = false;
+            currentMode = mode;
+            playIcon.classList.remove('fa-pause');
+            playIcon.classList.add('fa-play');
+
+            const btnPomodoro = document.getElementById('btn-mode-pomodoro');
+            const btnBreak = document.getElementById('btn-mode-break');
+            const startBtn = document.getElementById('btn-start');
+
+            if (mode === 'pomodoro') {
+                timeLeft = 25 * 60;
+                totalTime = 25 * 60;
+                btnPomodoro.className = "px-5 py-2.5 rounded-2xl font-bold text-sm transition-all bg-indigo-600 text-white shadow-md shadow-indigo-200";
+                btnBreak.className = "px-5 py-2.5 rounded-2xl font-bold text-sm transition-all bg-slate-100 text-slate-500 hover:bg-slate-200";
+                timerRing.style.stroke = "#4f46e5"; // indigo-600
+                startBtn.className = "w-20 h-20 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-105 shadow-xl shadow-indigo-200 flex items-center justify-center text-3xl transition-all";
+            } else {
+                timeLeft = 5 * 60;
+                totalTime = 5 * 60;
+                btnBreak.className = "px-5 py-2.5 rounded-2xl font-bold text-sm transition-all bg-emerald-500 text-white shadow-md shadow-emerald-200";
+                btnPomodoro.className = "px-5 py-2.5 rounded-2xl font-bold text-sm transition-all bg-slate-100 text-slate-500 hover:bg-slate-200";
+                timerRing.style.stroke = "#10b981"; // emerald-500
+                startBtn.className = "w-20 h-20 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 hover:scale-105 shadow-xl shadow-emerald-200 flex items-center justify-center text-3xl transition-all";
+            }
+            updateDisplay();
+        };
+
+        window.toggleTimer = function() {
+            if (isRunning) {
+                clearInterval(timer);
+                isRunning = false;
+                playIcon.classList.remove('fa-pause');
+                playIcon.classList.add('fa-play');
+                playIcon.classList.add('ml-1');
+            } else {
+                isRunning = true;
+                playIcon.classList.remove('fa-play');
+                playIcon.classList.remove('ml-1');
+                playIcon.classList.add('fa-pause');
+                
+                timer = setInterval(() => {
+                    timeLeft--;
+                    updateDisplay();
+                    if (timeLeft <= 0) {
+                        clearInterval(timer);
+                        isRunning = false;
+                        playIcon.classList.remove('fa-pause');
+                        playIcon.classList.add('fa-play');
+                        playIcon.classList.add('ml-1');
+                        
+                        // Notificação nativa se permitida, ou visual
+                        if(Notification.permission === 'granted') {
+                            new Notification("AprovaENEM", { body: currentMode === 'pomodoro' ? "Sessão concluída! Hora de descansar." : "Pausa acabou! Foco nos estudos." });
+                        }
+                        
+                        window.setTimerMode(currentMode === 'pomodoro' ? 'shortBreak' : 'pomodoro');
+                    }
+                }, 1000);
+            }
+        };
+
+        window.resetTimer = function() {
+            window.setTimerMode(currentMode);
+        };
+
+        // Solicitar permissão de notificação para o Pomodoro
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+        updateDisplay();
+
+
+        // --- SISTEMA DO TUTOR IA (INTEGRAÇÃO GEMINI) ---
+        const chatInput = document.getElementById('chat-input');
+        const btnSendChat = document.getElementById('btn-send-chat');
+        const chatMessages = document.getElementById('chat-messages');
+
+        // Auto-expand textarea
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight < 128 ? this.scrollHeight : 128) + 'px';
+            btnSendChat.disabled = this.value.trim() === '';
+        });
+
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        btnSendChat.addEventListener('click', sendMessage);
+
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            if (!geminiApiKey) {
+                addMessageToUI("Sistema", "A chave de API não foi configurada. Acesse o Remote Config do Firebase e defina 'google_api_key_1'.", 'system');
+                return;
+            }
+
+            // Limpa input e desabilita
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            btnSendChat.disabled = true;
+
+            // Mostra mensagem do usuario
+            addMessageToUI("Você", text, 'user');
+            
+            // Adiciona loading
+            const loadingId = 'loading-' + Date.now();
+            addMessageToUI("Tutor IA", '<i class="fa-solid fa-circle-notch fa-spin text-indigo-500 text-xl"></i>', 'ai', loadingId);
+            scrollToBottom();
+
+            try {
+                // Requisição real para o Gemini via API REST
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: text }] }],
+                        systemInstruction: { parts: [{ text: "Você é um tutor amigável e focado em ajudar estudantes a passarem no exame do ENEM no Brasil. Suas respostas devem ser claras, educativas, não muito longas, formatadas de forma legível e sempre encorajadoras. Foque nas matérias do ensino médio." }] }
+                    })
+                });
+
+                if(!response.ok) throw new Error("Erro na API do Google");
+
+                const data = await response.json();
+                const aiText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui formular uma resposta.";
+                
+                // Formatar texto simples (bold, lists)
+                const formattedText = formatAIResponse(aiText);
+                
+                // Remove loading e adiciona resposta real
+                document.getElementById(loadingId).remove();
+                addMessageToUI("Tutor IA", formattedText, 'ai');
+
+            } catch(err) {
+                document.getElementById(loadingId).remove();
+                addMessageToUI("Sistema", "Falha de conexão com a IA. Verifique sua Chave de API ou conexão de rede.", 'system');
+                console.error(err);
+            }
+            scrollToBottom();
+        }
+
+        function formatAIResponse(text) {
+            // Conversão basica de Markdown para HTML seguro
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '<br><br>')
+                .replace(/\n/g, '<br>')
+                .replace(/- (.*?)<br>/g, '<li class="ml-4 list-disc">$1</li>');
+        }
+
+        function addMessageToUI(sender, content, type, id = null) {
+            const div = document.createElement('div');
+            if (id) div.id = id;
+            
+            if (type === 'user') {
+                div.className = "flex items-start justify-end mb-6";
+                div.innerHTML = `
+                    <div class="bg-indigo-600 text-white p-4 rounded-2xl chat-bubble-user shadow-md text-sm leading-relaxed max-w-[85%] font-medium">
+                        ${content}
+                    </div>
+                `;
+            } else if (type === 'ai') {
+                div.className = "flex items-start max-w-[85%] mb-6";
+                div.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shrink-0 mr-3 shadow-md mt-1">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-white border border-slate-100 p-4 rounded-2xl chat-bubble-ai shadow-sm text-slate-700 text-sm leading-relaxed font-medium">
+                        ${content}
+                    </div>
+                `;
+            } else {
+                // System message
+                div.className = "flex justify-center mb-6";
+                div.innerHTML = `
+                    <div class="bg-red-50 text-red-600 text-xs px-4 py-2 rounded-full font-bold border border-red-100 flex items-center">
+                        <i class="fa-solid fa-circle-exclamation mr-2"></i> ${content}
+                    </div>
+                `;
+            }
+            
+            chatMessages.appendChild(div);
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+        }
+
+
+        // Saudação Inicial Inteligente
+        const horaAtual = new Date().getHours();
+        let saudacaoTexto = "Olá!";
+        if(horaAtual >= 5 && horaAtual < 12) saudacaoTexto = "Bom dia!";
+        else if(horaAtual >= 12 && horaAtual < 18) saudacaoTexto = "Boa tarde!";
+        else saudacaoTexto = "Boa noite!";
+        document.getElementById('saudacao').innerText = saudacaoTexto;
+
+    </script>
+</body>
+</html>
