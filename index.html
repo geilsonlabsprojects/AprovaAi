@@ -57,8 +57,7 @@
         const auth = getAuth(app);
         const remoteConfig = getRemoteConfig(app);
 
-        // Configuração de tempo de cache do Remote Config (Público/Produção)
-        // 3600000 ms = 1 hora. Evita bater o limite de requisições da API do Firebase.
+        // Configuração de tempo de cache do Remote Config (1 segundo conforme solicitado)
         remoteConfig.settings.minimumFetchIntervalMillis = 1000; 
 
         // Exportar para o escopo global (window) para acesso do restante do script
@@ -306,7 +305,13 @@
                 
                 try {
                     const { remoteConfig, fetchAndActivate, getString } = window.firebaseApp;
-                    await fetchAndActivate(remoteConfig);
+                    
+                    // Tenta buscar e ativar. Se falhar (ex: throttling), cai no catch mas tentaremos ler o cache local depois
+                    try {
+                        await fetchAndActivate(remoteConfig);
+                    } catch (fetchError) {
+                        console.warn("Aviso ao buscar Remote Config (usando cache local):", fetchError);
+                    }
                     
                     // PROCURA A CHAVE NO REMOTE CONFIG PELO PARÂMETRO SOLICITADO
                     State.geminiKey = getString(remoteConfig, "google_api_key_1");
@@ -321,8 +326,8 @@
                         statusText.classList.add('text-amber-500');
                     }
                 } catch (error) {
-                    console.error("Erro ao buscar Remote Config:", error);
-                    statusText.innerText = "Erro de conexão.";
+                    console.error("Erro ao configurar Remote Config:", error);
+                    statusText.innerText = "Erro de configuração.";
                 }
             }
         };
@@ -355,8 +360,8 @@
 
                 // 3. Chamada para a API do Google Gemini
                 try {
-                    // Endpoint padrão do Gemini 1.5 Flash via REST API
-                    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${State.geminiKey}`;
+                    // Endpoint atualizado para o Gemini 2.5 Flash via REST API
+                    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${State.geminiKey}`;
                     
                     const response = await fetch(endpoint, {
                         method: 'POST',
@@ -374,6 +379,10 @@
                     // Remove loading
                     document.getElementById(loadingId).remove();
 
+                    if (!response.ok) {
+                        throw new Error(data.error?.message || "Erro desconhecido na API do Google");
+                    }
+
                     if (data.error) {
                         throw new Error(data.error.message);
                     }
@@ -384,7 +393,7 @@
                 } catch (error) {
                     console.error("Erro Gemini API:", error);
                     document.getElementById(loadingId)?.remove();
-                    this.addMessageToChat('system', 'Desculpe, ocorreu um erro ao contatar o servidor. Tente novamente.');
+                    this.addMessageToChat('system', `Desculpe, ocorreu um erro na conexão: ${error.message}.`);
                 } finally {
                     btnSend.disabled = false;
                     btnSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
