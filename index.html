@@ -59,7 +59,7 @@
 
         // Configuração de tempo de cache do Remote Config (Público/Produção)
         // 3600000 ms = 1 hora. Evita bater o limite de requisições da API do Firebase.
-        remoteConfig.settings.minimumFetchIntervalMillis = 3600000; 
+        remoteConfig.settings.minimumFetchIntervalMillis = 1000; 
 
         // Exportar para o escopo global (window) para acesso do restante do script
         window.firebaseApp = {
