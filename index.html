@@ -14,1011 +14,600 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Firebase SDKs (Modulos v11 compatíveis com CDN) -->
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Chat Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .msg-enter { animation: fadeIn 0.3s ease-out forwards; }
+        
+        /* Markdown simples para o Chat */
+        .msg-content strong { font-weight: 700; color: #1e293b; }
+        .msg-content p { margin-bottom: 0.5rem; }
+        .msg-content p:last-child { margin-bottom: 0; }
+        
+        .dark-mode .msg-content strong { color: #f8fafc; }
+    </style>
+
+    <!-- Firebase SDKs (Módulos v11 via CDN) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-        import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getRemoteConfig, fetchAndActivate, getString } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-remote-config.js";
         
-        // Exportar para o escopo global para facilitar a divisão de código
-        window.firebaseModules = { initializeApp, getAuth, signInWithPopup, GoogleAuthProvider, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut };
+        // 1. Configuração do Firebase fornecida por você
+        const firebaseConfig = {
+            apiKey: "AIzaSyBLr84FdiPT-R1RIVV7Doo7lr16khInur8",
+            authDomain: "aprovaenem-api.firebaseapp.com",
+            projectId: "aprovaenem-api",
+            storageBucket: "aprovaenem-api.firebasestorage.app",
+            messagingSenderId: "717749759571",
+            appId: "1:717749759571:web:31f9b85900334fad9c60a6",
+            measurementId: "G-9Q225QMSVD"
+        };
+
+        // 2. Inicialização
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const remoteConfig = getRemoteConfig(app);
+
+        // Configuração de tempo de cache do Remote Config (Público/Produção)
+        // 3600000 ms = 1 hora. Evita bater o limite de requisições da API do Firebase.
+        remoteConfig.settings.minimumFetchIntervalMillis = 3600000; 
+
+        // Exportar para o escopo global (window) para acesso do restante do script
+        window.firebaseApp = {
+            auth,
+            remoteConfig,
+            provider: new GoogleAuthProvider(),
+            signInWithPopup,
+            onAuthStateChanged,
+            signOut,
+            fetchAndActivate,
+            getString
+        };
     </script>
-
-    <style>
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: #f1f5f9; /* slate-100 */
-            overscroll-behavior-y: none;
-        }
-        
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .tab-content { display: none; animation: fadeIn 0.4s ease forwards; }
-        .tab-content.active { display: flex; flex-direction: column; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .chat-bubble-ai { border-bottom-left-radius: 4px; }
-        .chat-bubble-user { border-bottom-right-radius: 4px; }
-        
-        .progress-ring__circle {
-            transition: stroke-dashoffset 0.5s linear;
-            transform: rotate(-90deg);
-            transform-origin: 50% 50%;
-        }
-
-        /* Efeito de brilho para botões IA */
-        .btn-gemini-sparkle {
-            background: linear-gradient(90deg, #4f46e5, #9333ea, #4f46e5);
-            background-size: 200% auto;
-            animation: shine 3s linear infinite;
-        }
-
-        @keyframes shine { to { background-position: 200% center; } }
-        
-        /* Layout Desktop vs Mobile */
-        .app-container { height: 100dvh; width: 100vw; display: flex; }
-        .sidebar { display: none; }
-        .bottom-nav { display: flex; }
-        
-        @media (min-width: 768px) {
-            .sidebar { display: flex; }
-            .bottom-nav { display: none; }
-            .mobile-header { display: none; }
-        }
-    </style>
 </head>
-<body class="text-slate-800 overflow-hidden">
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
 
-    <div class="app-container">
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center z-10 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 text-white p-2 rounded-lg flex items-center justify-center">
+                <i class="fa-solid fa-graduation-cap text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900 leading-tight">AprovaENEM <span class="text-blue-600">Premium</span></h1>
+                <p class="text-xs text-slate-500 font-medium">Foco & Inteligência Artificial</p>
+            </div>
+        </div>
         
-        <!-- SIDEBAR (DESKTOP) -->
-        <aside class="sidebar w-72 bg-slate-900 text-white flex-col shadow-2xl z-20 shrink-0">
-            <div class="p-8">
-                <h1 class="text-2xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 tracking-tight mb-1">AprovaENEM</h1>
-                <p class="text-slate-400 text-sm font-medium" id="saudacao-desktop">Olá, estudante!</p>
-            </div>
+        <div id="authContainer" class="flex items-center gap-4">
+            <!-- Loading State -->
+            <div id="authLoading" class="text-slate-400"><i class="fa-solid fa-circle-notch fa-spin"></i></div>
             
-            <nav class="flex-1 px-4 space-y-2 mt-4">
-                <button onclick="UI.switchTab('tasks')" class="nav-btn-desktop active w-full flex items-center gap-4 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all font-semibold" data-target="tab-tasks">
-                    <i class="fa-solid fa-list-check w-5 text-center"></i> Plano de Estudos
-                </button>
-                <button onclick="UI.switchTab('pomodoro')" class="nav-btn-desktop w-full flex items-center gap-4 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all font-semibold" data-target="tab-pomodoro">
-                    <i class="fa-solid fa-clock w-5 text-center"></i> Foco Total
-                </button>
-                <button onclick="UI.switchTab('ai')" class="nav-btn-desktop w-full flex items-center gap-4 px-4 py-3 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all font-semibold relative overflow-hidden" data-target="tab-ai">
-                    <div class="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-purple-600/20 opacity-0 hover:opacity-100 transition-opacity"></div>
-                    <i class="fa-solid fa-brain w-5 text-center text-indigo-400"></i> Tutor IA Premium
-                </button>
-            </nav>
-
-            <div class="p-6">
-                <div id="authStatusDesktop" class="bg-slate-800 p-4 rounded-xl flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center">
-                        <i class="fa-solid fa-user text-slate-400"></i>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-bold truncate" id="userNameDesktop">Não logado</p>
-                        <button onclick="AuthManager.logout()" class="text-xs text-red-400 hover:text-red-300 hidden" id="btnLogoutDesktop">Sair</button>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        <!-- MAIN CONTENT -->
-        <main class="flex-1 flex flex-col relative bg-slate-50 h-full">
+            <!-- Logged Out State -->
+            <button id="btnLogin" class="hidden bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2">
+                <i class="fa-brands fa-google"></i> Entrar
+            </button>
             
-            <!-- HEADER MOBILE -->
-            <header class="mobile-header pt-12 pb-6 px-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-b-3xl shadow-lg z-10 shrink-0">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h1 class="text-2xl font-bold tracking-tight" id="saudacao-mobile">Olá!</h1>
-                        <p class="text-indigo-100 text-sm font-medium">Bora focar na aprovação 🚀</p>
-                    </div>
-                    <div class="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm shadow-sm">
-                        <i class="fa-solid fa-graduation-cap text-white"></i>
-                    </div>
+            <!-- Logged In State -->
+            <div id="userProfile" class="hidden flex items-center gap-3">
+                <div class="text-right hidden md:block">
+                    <p id="userName" class="text-sm font-bold text-slate-900"></p>
+                    <button id="btnLogout" class="text-xs text-red-500 hover:text-red-700 font-medium">Sair da conta</button>
                 </div>
-            </header>
-
-            <!-- TABS AREA -->
-            <div class="flex-1 overflow-y-auto no-scrollbar relative">
-                
-                <!-- 1. TAREFAS TAB -->
-                <div id="tab-tasks" class="tab-content active p-6 md:p-10 max-w-4xl mx-auto h-full">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="text-2xl font-bold text-slate-800">Seu Cronograma</h2>
-                        <span class="bg-indigo-100 text-indigo-700 text-sm px-4 py-1.5 rounded-full font-bold" id="taskCounter">0/0</span>
-                    </div>
-
-                    <!-- ✨ Botão IA: Otimizar Cronograma -->
-                    <button onclick="AIManager.optimizeSchedule()" class="w-full btn-gemini-sparkle text-white text-sm font-bold py-3.5 rounded-xl mb-8 shadow-lg flex items-center justify-center gap-2 transform hover:scale-[1.01] active:scale-95 transition-all">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i>
-                        ANALISAR E OTIMIZAR MEUS ESTUDOS COM IA ✨
-                    </button>
-
-                    <!-- Form Nova Tarefa -->
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 mb-8">
-                        <div class="flex flex-col md:flex-row gap-3">
-                            <input type="text" id="newTaskInput" placeholder="O que você precisa estudar hoje? Ex: Biologia - Citologia" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium">
-                            <div class="flex gap-2 w-full md:w-auto">
-                                <input type="date" id="newTaskDate" class="flex-1 md:w-40 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-500">
-                                <button onclick="TaskManager.add()" class="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-3 font-bold transition-colors shadow-md flex items-center justify-center shrink-0">
-                                    <i class="fa-solid fa-plus md:mr-2"></i><span class="hidden md:inline">Adicionar</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Lista -->
-                    <div id="taskList" class="flex flex-col gap-4 pb-20 md:pb-0">
-                        <!-- Tarefas injetadas via JS -->
-                    </div>
-                </div>
-
-                <!-- 2. POMODORO TAB -->
-                <div id="tab-pomodoro" class="tab-content p-6 flex flex-col items-center justify-center min-h-full">
-                    <h2 class="text-2xl font-bold text-slate-800 mb-10 w-full text-center">Foco e Produtividade</h2>
-
-                    <!-- Timer Circular -->
-                    <div class="relative w-72 h-72 mb-12">
-                        <svg class="w-full h-full drop-shadow-sm" viewBox="0 0 100 100">
-                            <circle class="text-slate-200 stroke-current" stroke-width="4" cx="50" cy="50" r="46" fill="transparent"></circle>
-                            <circle id="timerCircle" class="text-indigo-500 progress-ring__circle stroke-current drop-shadow-md" stroke-width="6" stroke-linecap="round" cx="50" cy="50" r="46" fill="transparent" stroke-dasharray="289" stroke-dashoffset="0"></circle>
-                        </svg>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center">
-                            <span id="timerDisplay" class="text-6xl font-extrabold text-slate-800 tracking-tighter">25:00</span>
-                            <span id="timerStatus" class="text-sm font-bold text-slate-400 mt-2 uppercase tracking-widest">Pronto</span>
-                        </div>
-                    </div>
-
-                    <!-- Controles -->
-                    <div class="flex gap-6 items-center">
-                        <button onclick="PomodoroManager.reset()" class="w-16 h-16 rounded-2xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center text-xl shadow-sm hover:bg-slate-50 hover:text-indigo-600 transition-all transform hover:scale-105">
-                            <i class="fa-solid fa-rotate-right"></i>
-                        </button>
-                        <button id="playPauseBtn" onclick="PomodoroManager.toggle()" class="w-24 h-24 rounded-3xl bg-indigo-600 text-white flex items-center justify-center text-4xl shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all transform active:scale-95 hover:scale-105">
-                            <i class="fa-solid fa-play ml-2"></i>
-                        </button>
-                        <button onclick="PomodoroManager.setMode('break')" class="w-16 h-16 rounded-2xl bg-white border border-slate-200 text-slate-500 flex items-center justify-center text-xl shadow-sm hover:bg-slate-50 hover:text-emerald-500 transition-all transform hover:scale-105">
-                            <i class="fa-solid fa-mug-hot"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 3. IA TUTOR TAB -->
-                <div id="tab-ai" class="tab-content h-full relative bg-white md:bg-transparent">
-                    
-                    <!-- Sobreposição de Login (Aparece se não estiver logado) -->
-                    <div id="authOverlay" class="absolute inset-0 bg-white/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center">
-                        <div class="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center mb-6 shadow-inner">
-                            <i class="fa-solid fa-lock text-3xl text-indigo-600"></i>
-                        </div>
-                        <h2 class="text-2xl font-bold text-slate-800 mb-2">Acesso Restrito</h2>
-                        <p class="text-slate-500 mb-8 max-w-sm">Para usar o Tutor IA Premium e gerar simulados, você precisa se identificar.</p>
-                        
-                        <div class="w-full max-w-sm space-y-4">
-                            <!-- Botão Google -->
-                            <button onclick="AuthManager.loginGoogle()" class="w-full bg-white border border-slate-300 text-slate-700 font-bold py-3 px-4 rounded-xl shadow-sm hover:bg-slate-50 flex items-center justify-center gap-3 transition-colors">
-                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" class="w-5 h-5" alt="Google">
-                                Entrar com Google
-                            </button>
-                            
-                            <div class="flex items-center gap-4 my-4">
-                                <div class="flex-1 h-px bg-slate-200"></div>
-                                <span class="text-xs text-slate-400 font-medium uppercase">ou</span>
-                                <div class="flex-1 h-px bg-slate-200"></div>
-                            </div>
-
-                            <!-- Form Email -->
-                            <div class="space-y-3">
-                                <input type="email" id="authEmail" placeholder="Seu e-mail" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                <input type="password" id="authPass" placeholder="Sua senha" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                <div class="flex gap-2">
-                                    <button onclick="AuthManager.loginEmail()" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition-colors">Entrar</button>
-                                    <button onclick="AuthManager.registerEmail()" class="flex-1 bg-slate-800 text-white font-bold py-3 rounded-xl hover:bg-slate-900 transition-colors">Criar Conta</button>
-                                </div>
-                            </div>
-                            <p id="authError" class="text-red-500 text-xs mt-2 hidden"></p>
-                        </div>
-                    </div>
-
-                    <!-- Conteúdo do Chat IA -->
-                    <div class="flex flex-col h-full max-w-4xl mx-auto w-full md:p-6 pb-20 md:pb-6">
-                        <div class="text-center mb-4 md:mb-6 pt-6 md:pt-0 shrink-0">
-                            <h2 class="text-xl font-bold text-slate-800 flex items-center justify-center gap-2">
-                                <i class="fa-solid fa-sparkles text-indigo-500"></i> Tutor IA Premium
-                            </h2>
-                            <p class="text-xs text-slate-500 mt-1">Tire dúvidas, peça resumos ou explicações</p>
-                        </div>
-
-                        <!-- Chat Messages -->
-                        <div id="chatMessages" class="flex-1 overflow-y-auto no-scrollbar flex flex-col gap-5 px-4 md:px-0">
-                            <!-- Mensagem Inicial será injetada aqui -->
-                        </div>
-
-                        <!-- Chat Input -->
-                        <div class="shrink-0 pt-4 px-4 md:px-0 mt-auto">
-                            <div class="relative flex items-center shadow-lg rounded-full bg-white border border-slate-200 p-1">
-                                <input type="text" id="aiInput" placeholder="Pergunte qualquer coisa do ENEM..." class="w-full bg-transparent pl-5 pr-14 py-3 text-sm focus:outline-none font-medium text-slate-700">
-                                <button onclick="AIManager.sendMessage()" class="w-10 h-10 shrink-0 bg-indigo-600 rounded-full text-white flex items-center justify-center hover:bg-indigo-700 transition-colors transform active:scale-95 mr-1">
-                                    <i class="fa-solid fa-paper-plane text-sm"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+                <img id="userPhoto" src="" alt="User" class="w-10 h-10 rounded-full border-2 border-slate-200">
             </div>
+        </div>
+    </header>
 
-            <!-- BOTTOM NAVIGATION (MOBILE) -->
-            <nav class="bottom-nav bg-white border-t border-slate-200 px-6 py-3 justify-between items-center absolute bottom-0 w-full z-20 pb-safe">
-                <button onclick="UI.switchTab('tasks')" class="nav-btn-mobile active flex flex-col items-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-colors w-20" data-target="tab-tasks">
-                    <i class="fa-solid fa-list-check text-xl"></i>
-                    <span class="text-[10px] font-bold">Tarefas</span>
-                </button>
-                <button onclick="UI.switchTab('pomodoro')" class="nav-btn-mobile flex flex-col items-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-colors w-20" data-target="tab-pomodoro">
-                    <i class="fa-solid fa-clock text-xl"></i>
-                    <span class="text-[10px] font-bold">Foco</span>
-                </button>
-                <button onclick="UI.switchTab('ai')" class="nav-btn-mobile flex flex-col items-center gap-1.5 text-slate-400 hover:text-indigo-600 transition-colors w-20 relative" data-target="tab-ai">
-                    <i class="fa-solid fa-brain text-xl"></i>
-                    <span class="text-[10px] font-bold">Tutor IA</span>
-                    <!-- Indicador de bloqueio se não logado -->
-                    <div id="aiLockMobile" class="absolute top-0 right-3 w-3 h-3 bg-red-500 border-2 border-white rounded-full"></div>
-                </button>
-            </nav>
-        </main>
-    </div>
-
-    <!-- Modais Genéricos -->
-    
-    <!-- Modal de Resultado de IA (Simulado/Cronograma) -->
-    <div id="aiResultModal" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl w-full max-w-2xl max-h-[85vh] shadow-2xl animate-[fadeIn_0.2s_ease] flex flex-col">
-            <div class="p-6 border-b border-slate-100 flex justify-between items-center shrink-0 bg-indigo-50 rounded-t-3xl">
-                <h3 class="font-bold text-lg text-indigo-900 flex items-center gap-2" id="aiModalTitle">
-                    <i class="fa-solid fa-sparkles text-indigo-600"></i> Resultado IA
-                </h3>
-                <button onclick="UI.closeModal('aiResultModal')" class="w-8 h-8 bg-white rounded-full text-slate-400 hover:text-slate-700 flex items-center justify-center shadow-sm">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div class="p-6 overflow-y-auto no-scrollbar flex-1 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap font-medium" id="aiModalContent">
-                <!-- Conteúdo gerado -->
-            </div>
-            <div class="p-4 border-t border-slate-100 shrink-0 bg-slate-50 rounded-b-3xl flex justify-end gap-3">
-                 <button onclick="AIManager.copyModalContent()" class="bg-white border border-slate-300 text-slate-700 font-bold py-2.5 px-5 rounded-xl hover:bg-slate-100 transition-colors flex items-center gap-2 text-sm">
-                    <i class="fa-regular fa-copy"></i> Copiar
-                </button>
-                <button onclick="UI.closeModal('aiResultModal')" class="bg-indigo-600 text-white font-bold py-2.5 px-6 rounded-xl hover:bg-indigo-700 transition-colors text-sm shadow-md">
-                    Fechar
+    <!-- Main Content App -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        
+        <!-- Overlay de Bloqueio (Requer Login) -->
+        <div id="loginOverlay" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-20 flex flex-col items-center justify-center hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center mx-4">
+                <div class="bg-blue-100 text-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h2 class="text-2xl font-bold mb-2">Acesso Restrito</h2>
+                <p class="text-slate-500 mb-6 text-sm">Faça login com sua conta Google para acessar o tutor IA, pomodoro e suas tarefas.</p>
+                <button onclick="AuthManager.login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-lg shadow-blue-600/30">
+                    <i class="fa-brands fa-google"></i> Continuar com Google
                 </button>
             </div>
         </div>
-    </div>
 
-    <!-- Áudio Invisível para TTS e Alarme -->
-    <audio id="alarmSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
-    <audio id="ttsAudio" class="hidden"></audio>
+        <!-- Left Sidebar: Pomodoro & Tasks -->
+        <aside class="w-full md:w-80 lg:w-96 bg-slate-50 border-r border-slate-200 flex flex-col overflow-y-auto">
+            
+            <!-- Pomodoro Section -->
+            <div class="p-6 border-b border-slate-200">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-stopwatch text-blue-600"></i> Modo Foco</h2>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center">
+                    <div id="pomodoroTimer" class="text-5xl font-extrabold tracking-tight text-slate-900 mb-4 font-mono">25:00</div>
+                    
+                    <div class="flex justify-center gap-3">
+                        <button id="btnPomoStart" class="bg-blue-600 hover:bg-blue-700 text-white w-12 h-12 rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-md">
+                            <i class="fa-solid fa-play"></i>
+                        </button>
+                        <button id="btnPomoPause" class="hidden bg-amber-500 hover:bg-amber-600 text-white w-12 h-12 rounded-full flex items-center justify-center transition-transform hover:scale-105 shadow-md">
+                            <i class="fa-solid fa-pause"></i>
+                        </button>
+                        <button id="btnPomoReset" class="bg-slate-200 hover:bg-slate-300 text-slate-700 w-12 h-12 rounded-full flex items-center justify-center transition-transform hover:scale-105">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-    <!-- SCRIPTS ORGANIZADOS POR MÓDULOS -->
+            <!-- Tasks Section -->
+            <div class="p-6 flex-1 flex flex-col min-h-[300px]">
+                <h2 class="font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="fa-solid fa-list-check text-blue-600"></i> Plano de Estudos</h2>
+                
+                <div class="relative mb-4">
+                    <input type="text" id="newTaskInput" placeholder="Adicionar nova matéria/tarefa..." class="w-full bg-white border border-slate-200 rounded-xl py-3 pl-4 pr-12 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all text-sm">
+                    <button onclick="TaskManager.add()" class="absolute right-2 top-2 bottom-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg px-3 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-plus"></i>
+                    </button>
+                </div>
+
+                <ul id="taskList" class="flex-1 overflow-y-auto space-y-2 pr-2">
+                    <!-- Tasks renderizadas via JS -->
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Right Main: AI Chat -->
+        <section class="flex-1 bg-white flex flex-col h-[60vh] md:h-auto">
+            <!-- Chat Header -->
+            <div class="border-b border-slate-100 px-6 py-4 bg-white/80 backdrop-blur z-10 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-robot text-blue-600"></i> Tutor IA
+                    </h3>
+                    <p class="text-xs text-slate-500" id="aiStatusText">Conectando ao servidor...</p>
+                </div>
+                <button onclick="AIManager.clearChat()" class="text-slate-400 hover:text-slate-600 text-sm flex items-center gap-1">
+                    <i class="fa-solid fa-broom"></i> Limpar
+                </button>
+            </div>
+
+            <!-- Chat Messages Area -->
+            <div id="chatBox" class="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
+                <!-- Welcome Message -->
+                <div class="flex gap-4 msg-enter">
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 border border-blue-200">
+                        <i class="fa-solid fa-robot text-blue-600"></i>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-slate-700 text-sm leading-relaxed msg-content">
+                        <p>Olá! Eu sou seu <strong>Tutor IA AprovaENEM</strong>. Estou configurado e pronto para ajudar.</p>
+                        <p>Tire suas dúvidas de Matemática, Redação, Ciências ou peça dicas de estudo. Como posso ajudar agora?</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 bg-white border-t border-slate-200">
+                <div class="max-w-4xl mx-auto relative">
+                    <textarea id="aiInput" rows="1" placeholder="Digite sua dúvida aqui (ex: Me explique a Revolução Industrial)..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl py-4 pl-5 pr-14 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all resize-none text-sm text-slate-800 block shadow-sm"></textarea>
+                    <button onclick="AIManager.sendMessage()" id="btnSendAi" class="absolute right-2 top-2 bottom-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl w-10 flex items-center justify-center transition-all shadow-sm">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+                <p class="text-center text-[10px] text-slate-400 mt-2">A IA pode cometer erros. Considere verificar informações importantes.</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Scripts da Aplicação -->
     <script>
         // ==========================================
-        // 0. CONFIGURAÇÕES GLOBAIS
+        // ESTADO GLOBAL & UTILITÁRIOS
         // ==========================================
-        const CONFIG = {
-            // A API KEY deve ser inserida aqui para testes locais
-            GEMINI_API_KEY: "AIzaSyBUgvAk7xXEInKXO-Q4lm1kNK0bZK3bk_k" 
-        };
-
-        // Estado Global
-        const AppState = {
+        const State = {
             user: null,
-            tasks: JSON.parse(localStorage.getItem('aprovaTasks')) || []
+            geminiKey: null,
+            isAiReady: false,
+            tasks: JSON.parse(localStorage.getItem('aprovaEnemTasks')) || []
         };
 
-
-        // ==========================================
-        // 1. MÓDULO UI (Interface e Utilitários)
-        // ==========================================
-        const UI = {
-            init: function() {
-                this.updateGreeting();
-                this.switchTab('tasks');
+        const Utils = {
+            formatTextToHTML(text) {
+                // Converte **texto** para <strong>texto</strong> e \n para <br>
+                let html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                html = html.replace(/\n/g, '<br>');
+                return html;
             },
-
-            updateGreeting: function() {
-                const hour = new Date().getHours();
-                let text = hour >= 5 && hour < 12 ? "Bom dia!" : hour < 18 ? "Boa tarde!" : "Boa noite!";
-                document.getElementById('saudacao-desktop').innerText = `${text} Bora estudar!`;
-                document.getElementById('saudacao-mobile').innerText = text;
-            },
-
-            switchTab: function(tabName) {
-                // Se tentar acessar IA sem estar logado, mostra o overlay
-                if(tabName === 'ai') {
-                    document.getElementById('authOverlay').style.display = AppState.user ? 'none' : 'flex';
-                }
-
-                document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-                
-                // Desktop Nav
-                document.querySelectorAll('.nav-btn-desktop').forEach(el => {
-                    el.classList.remove('bg-slate-800', 'text-white');
-                    el.classList.add('text-slate-400');
-                });
-                // Mobile Nav
-                document.querySelectorAll('.nav-btn-mobile').forEach(el => {
-                    el.classList.remove('text-indigo-600');
-                    el.classList.add('text-slate-400');
-                });
-
-                document.getElementById(`tab-${tabName}`).classList.add('active');
-                
-                // Ativar botoes correspondentes
-                const btnDesk = document.querySelector(`.nav-btn-desktop[data-target="tab-${tabName}"]`);
-                if(btnDesk) {
-                    btnDesk.classList.remove('text-slate-400');
-                    btnDesk.classList.add('bg-slate-800', 'text-white');
-                }
-                
-                const btnMob = document.querySelector(`.nav-btn-mobile[data-target="tab-${tabName}"]`);
-                if(btnMob) {
-                    btnMob.classList.remove('text-slate-400');
-                    btnMob.classList.add('text-indigo-600');
-                }
-            },
-
-            openModal: function(id, title = '', content = '') {
-                if(title) document.getElementById('aiModalTitle').innerHTML = `<i class="fa-solid fa-sparkles text-indigo-600"></i> ${title}`;
-                if(content) document.getElementById('aiModalContent').innerHTML = content;
-                document.getElementById(id).classList.remove('hidden');
-            },
-
-            closeModal: function(id) {
-                document.getElementById(id).classList.add('hidden');
-            },
-
-            formatDateBR: function(dateString) {
-                if(!dateString) return '';
-                const [year, month, day] = dateString.split('-');
-                return `${day}/${month}`;
-            },
-
-            isUrgent: function(dateString) {
-                if(!dateString) return false;
-                const today = new Date();
-                today.setHours(0,0,0,0);
-                const [year, month, day] = dateString.split('-');
-                return new Date(year, month - 1, day) <= today;
-            },
-
-            showLoadingBtn: function(btnElement, isLoading, originalText = '') {
-                if(isLoading) {
-                    btnElement.disabled = true;
-                    btnElement.dataset.original = btnElement.innerHTML;
-                    btnElement.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Processando...`;
-                    btnElement.classList.add('opacity-75');
-                } else {
-                    btnElement.disabled = false;
-                    btnElement.innerHTML = btnElement.dataset.original || originalText;
-                    btnElement.classList.remove('opacity-75');
-                }
+            scrollToBottom(elementId) {
+                const el = document.getElementById(elementId);
+                el.scrollTop = el.scrollHeight;
             }
         };
 
-
         // ==========================================
-        // 2. MÓDULO AUTH (Firebase)
+        // GERENCIADOR DE AUTENTICAÇÃO E REMOTE CONFIG
         // ==========================================
         const AuthManager = {
-            auth: null,
-            
             init: function() {
-                // Em ambiente Canvas, __firebase_config pode ser injetado
-                const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
-                
-                // Se não houver config real, vamos simular o Auth para fins de demonstração da UI
-                if(!firebaseConfigStr) {
-                    console.log("Modo Demo: Firebase não configurado. Use email/senha qualquer para simular login.");
-                    this.simularAuthLocal();
-                    return;
-                }
-
-                try {
-                    const config = JSON.parse(firebaseConfigStr);
-                    const app = window.firebaseModules.initializeApp(config);
-                    this.auth = window.firebaseModules.getAuth(app);
-                    
-                    window.firebaseModules.onAuthStateChanged(this.auth, (user) => {
-                        this.handleUserState(user);
-                    });
-                } catch(e) {
-                    console.error("Erro Firebase INIT", e);
-                }
-            },
-
-            handleUserState: function(user) {
-                AppState.user = user;
-                const deskName = document.getElementById('userNameDesktop');
-                const deskBtn = document.getElementById('btnLogoutDesktop');
-                const lockIcon = document.getElementById('aiLockMobile');
-                const overlay = document.getElementById('authOverlay');
-
-                if (user) {
-                    // Logado
-                    const name = user.displayName || user.email.split('@')[0];
-                    deskName.innerText = name;
-                    deskBtn.classList.remove('hidden');
-                    lockIcon.classList.add('hidden');
-                    overlay.style.display = 'none';
-                    
-                    // Inicializar IA Chat se vazio
-                    if(document.getElementById('chatMessages').children.length === 0) {
-                        AIManager.renderInitialMessage(name);
+                // Aguardar o módulo Firebase carregar globalmente
+                const checkFirebase = setInterval(() => {
+                    if (window.firebaseApp) {
+                        clearInterval(checkFirebase);
+                        this.setupListeners();
                     }
-                } else {
-                    // Deslogado
-                    deskName.innerText = "Não logado";
-                    deskBtn.classList.add('hidden');
-                    lockIcon.classList.remove('hidden');
+                }, 100);
+
+                document.getElementById('btnLogin').addEventListener('click', () => this.login());
+                document.getElementById('btnLogout').addEventListener('click', () => this.logout());
+            },
+
+            setupListeners: function() {
+                const { auth, onAuthStateChanged } = window.firebaseApp;
+                
+                onAuthStateChanged(auth, async (user) => {
+                    document.getElementById('authLoading').classList.add('hidden');
+                    State.user = user;
                     
-                    // Se estiver na aba de IA, mostra o overlay
-                    if(document.getElementById('tab-ai').classList.contains('active')) {
-                        overlay.style.display = 'flex';
+                    if (user) {
+                        // Usuário logado
+                        document.getElementById('btnLogin').classList.add('hidden');
+                        document.getElementById('userProfile').classList.remove('hidden');
+                        document.getElementById('userProfile').classList.add('flex');
+                        document.getElementById('userName').innerText = user.displayName.split(' ')[0];
+                        document.getElementById('userPhoto').src = user.photoURL || 'https://via.placeholder.com/150';
+                        document.getElementById('loginOverlay').classList.add('hidden');
+                        
+                        // Busca as Configurações Remotas (Chave da IA) após login
+                        await this.fetchRemoteConfig();
+                    } else {
+                        // Usuário deslogado
+                        document.getElementById('btnLogin').classList.remove('hidden');
+                        document.getElementById('userProfile').classList.add('hidden');
+                        document.getElementById('userProfile').classList.remove('flex');
+                        document.getElementById('loginOverlay').classList.remove('hidden');
                     }
-                }
+                });
             },
 
-            loginGoogle: async function() {
-                if(!this.auth) return this.handleUserState({ displayName: "Aluno Demo", email: "demo@demo.com" });
+            login: async function() {
                 try {
-                    const provider = new window.firebaseModules.GoogleAuthProvider();
-                    await window.firebaseModules.signInWithPopup(this.auth, provider);
+                    const { auth, provider, signInWithPopup } = window.firebaseApp;
+                    await signInWithPopup(auth, provider);
                 } catch (error) {
-                    this.showError("Erro Google: " + error.message);
+                    console.error("Erro no login:", error);
+                    alert("Erro ao fazer login. Tente novamente.");
                 }
             },
 
-            loginEmail: async function() {
-                const email = document.getElementById('authEmail').value;
-                const pass = document.getElementById('authPass').value;
-                if(!email || !pass) return this.showError("Preencha email e senha");
+            logout: async function() {
+                try {
+                    const { auth, signOut } = window.firebaseApp;
+                    await signOut(auth);
+                } catch (error) {
+                    console.error("Erro no logout:", error);
+                }
+            },
+
+            fetchRemoteConfig: async function() {
+                const statusText = document.getElementById('aiStatusText');
+                statusText.innerText = "Buscando configurações...";
                 
-                if(!this.auth) return this.handleUserState({ email: email });
-
                 try {
-                    await window.firebaseModules.signInWithEmailAndPassword(this.auth, email, pass);
+                    const { remoteConfig, fetchAndActivate, getString } = window.firebaseApp;
+                    await fetchAndActivate(remoteConfig);
+                    
+                    // PROCURA A CHAVE NO REMOTE CONFIG PELO PARÂMETRO SOLICITADO
+                    State.geminiKey = getString(remoteConfig, "google_api_key_1");
+                    
+                    if (State.geminiKey && State.geminiKey.trim() !== "") {
+                        State.isAiReady = true;
+                        statusText.innerText = "Tutor Online";
+                        statusText.classList.remove('text-slate-500', 'text-amber-500');
+                        statusText.classList.add('text-emerald-500');
+                    } else {
+                        statusText.innerText = "Erro: Chave de API ausente no console Firebase.";
+                        statusText.classList.add('text-amber-500');
+                    }
                 } catch (error) {
-                    this.showError("Credenciais inválidas");
+                    console.error("Erro ao buscar Remote Config:", error);
+                    statusText.innerText = "Erro de conexão.";
                 }
-            },
-
-            registerEmail: async function() {
-                const email = document.getElementById('authEmail').value;
-                const pass = document.getElementById('authPass').value;
-                if(!email || !pass) return this.showError("Preencha email e senha");
-                
-                if(!this.auth) return this.handleUserState({ email: email });
-
-                try {
-                    await window.firebaseModules.createUserWithEmailAndPassword(this.auth, email, pass);
-                } catch (error) {
-                    this.showError("Erro ao criar: " + error.message);
-                }
-            },
-
-            logout: function() {
-                if(!this.auth) {
-                    AppState.user = null;
-                    this.handleUserState(null);
-                    return;
-                }
-                window.firebaseModules.signOut(this.auth);
-            },
-
-            showError: function(msg) {
-                const el = document.getElementById('authError');
-                el.innerText = msg;
-                el.classList.remove('hidden');
-                setTimeout(() => el.classList.add('hidden'), 3000);
-            },
-
-            simularAuthLocal: function() {
-                // Mock para garantir que a UI funcione mesmo sem chaves do Firebase
-                this.handleUserState(null);
             }
         };
 
+        // ==========================================
+        // GERENCIADOR DA INTELIGÊNCIA ARTIFICIAL (GEMINI)
+        // ==========================================
+        const AIManager = {
+            sendMessage: async function() {
+                const inputEl = document.getElementById('aiInput');
+                const btnSend = document.getElementById('btnSendAi');
+                const message = inputEl.value.trim();
+
+                if (!message) return;
+
+                if (!State.isAiReady) {
+                    this.addMessageToChat('system', 'O Tutor IA ainda não está pronto. Verifique sua conexão ou configuração do Remote Config no Firebase.');
+                    return;
+                }
+
+                // 1. Mostrar mensagem do usuário
+                this.addMessageToChat('user', message);
+                inputEl.value = '';
+                inputEl.style.height = 'auto'; // Reset textarea height
+                
+                // 2. Estado de Loading
+                btnSend.disabled = true;
+                btnSend.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                const loadingId = this.addLoadingMessage();
+
+                // 3. Chamada para a API do Google Gemini
+                try {
+                    // Endpoint padrão do Gemini 1.5 Flash via REST API
+                    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${State.geminiKey}`;
+                    
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: message }] }],
+                            systemInstruction: { 
+                                parts: [{ text: "Você é um professor tutor do ENEM. Responda de forma clara, didática, incentivadora e no idioma Português (Brasil). Formate textos importantes com negrito." }] 
+                            }
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    // Remove loading
+                    document.getElementById(loadingId).remove();
+
+                    if (data.error) {
+                        throw new Error(data.error.message);
+                    }
+
+                    const aiText = data.candidates[0].content.parts[0].text;
+                    this.addMessageToChat('ai', aiText);
+
+                } catch (error) {
+                    console.error("Erro Gemini API:", error);
+                    document.getElementById(loadingId)?.remove();
+                    this.addMessageToChat('system', 'Desculpe, ocorreu um erro ao contatar o servidor. Tente novamente.');
+                } finally {
+                    btnSend.disabled = false;
+                    btnSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+                }
+            },
+
+            addMessageToChat: function(sender, text) {
+                const chatBox = document.getElementById('chatBox');
+                const div = document.createElement('div');
+                div.className = `flex gap-4 msg-enter ${sender === 'user' ? 'flex-row-reverse' : ''}`;
+                
+                let avatar = '';
+                let bubbleClass = '';
+                let contentHTML = '';
+
+                if (sender === 'user') {
+                    avatar = `<img src="${State.user?.photoURL || 'https://via.placeholder.com/150'}" class="w-10 h-10 rounded-full border border-slate-200">`;
+                    bubbleClass = 'bg-blue-600 text-white rounded-tr-none shadow-md';
+                    contentHTML = `<p>${text.replace(/\n/g, '<br>')}</p>`;
+                } else if (sender === 'ai') {
+                    avatar = `<div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 border border-blue-200"><i class="fa-solid fa-robot text-blue-600"></i></div>`;
+                    bubbleClass = 'bg-white border border-slate-200 text-slate-700 rounded-tl-none shadow-sm';
+                    contentHTML = Utils.formatTextToHTML(text);
+                } else {
+                    // System messages (errors)
+                    avatar = `<div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 border border-amber-200"><i class="fa-solid fa-triangle-exclamation text-amber-600"></i></div>`;
+                    bubbleClass = 'bg-amber-50 border border-amber-200 text-amber-800 rounded-tl-none shadow-sm';
+                    contentHTML = `<p>${text}</p>`;
+                }
+
+                const actionsHtml = sender === 'ai' ? `
+                    <div class="flex justify-end gap-2 mt-2 pt-2 border-t border-slate-100">
+                        <button onclick="AIManager.copyText(this)" class="text-xs text-slate-400 hover:text-blue-600 flex items-center gap-1 transition-colors"><i class="fa-regular fa-copy"></i> Copiar</button>
+                    </div>
+                ` : '';
+
+                div.innerHTML = `
+                    ${avatar}
+                    <div class="p-4 rounded-2xl max-w-[85%] text-sm leading-relaxed msg-content ${bubbleClass}">
+                        ${contentHTML}
+                        ${actionsHtml}
+                    </div>
+                `;
+
+                chatBox.appendChild(div);
+                Utils.scrollToBottom('chatBox');
+            },
+
+            addLoadingMessage: function() {
+                const id = 'loading-' + Date.now();
+                const chatBox = document.getElementById('chatBox');
+                const div = document.createElement('div');
+                div.id = id;
+                div.className = 'flex gap-4 msg-enter';
+                div.innerHTML = `
+                    <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 border border-blue-200">
+                        <i class="fa-solid fa-robot text-blue-600"></i>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-slate-500 flex gap-2 items-center">
+                        <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+                        <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                        <div class="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                    </div>
+                `;
+                chatBox.appendChild(div);
+                Utils.scrollToBottom('chatBox');
+                return id;
+            },
+
+            clearChat: function() {
+                const chatBox = document.getElementById('chatBox');
+                chatBox.innerHTML = `
+                    <div class="flex gap-4 msg-enter">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 border border-blue-200">
+                            <i class="fa-solid fa-robot text-blue-600"></i>
+                        </div>
+                        <div class="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-none shadow-sm max-w-[85%] text-slate-700 text-sm leading-relaxed msg-content">
+                            <p>Histórico limpo. Como posso ajudar agora?</p>
+                        </div>
+                    </div>
+                `;
+            },
+
+            copyText: function(btnElement) {
+                const bubble = btnElement.closest('.msg-content');
+                // Remove a div de ações do texto copiado
+                const clone = bubble.cloneNode(true);
+                const actionDiv = clone.querySelector('.border-t');
+                if(actionDiv) actionDiv.remove();
+                
+                const text = clone.innerText;
+                
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalText = btnElement.innerHTML;
+                    btnElement.innerHTML = '<i class="fa-solid fa-check text-emerald-500"></i> Copiado';
+                    setTimeout(() => btnElement.innerHTML = originalText, 2000);
+                });
+            }
+        };
 
         // ==========================================
-        // 3. MÓDULO TAREFAS (CRUD)
+        // GERENCIADOR DE TAREFAS
         // ==========================================
         const TaskManager = {
             init: function() {
                 this.render();
             },
 
-            save: function() {
-                localStorage.setItem('aprovaTasks', JSON.stringify(AppState.tasks));
-                this.render();
-            },
-
             add: function() {
                 const input = document.getElementById('newTaskInput');
-                const dateInput = document.getElementById('newTaskDate');
                 const text = input.value.trim();
                 
                 if (text) {
-                    AppState.tasks.push({
-                        id: Date.now().toString(),
-                        text: text,
-                        completed: false,
-                        dueDate: dateInput.value
-                    });
+                    State.tasks.push({ id: Date.now(), text, completed: false });
                     input.value = '';
-                    dateInput.value = '';
-                    this.save();
+                    this.saveAndRender();
                 }
             },
 
             toggle: function(id) {
-                const task = AppState.tasks.find(t => t.id === id);
-                if(task) {
+                const task = State.tasks.find(t => t.id === id);
+                if (task) {
                     task.completed = !task.completed;
-                    this.save();
+                    this.saveAndRender();
                 }
             },
 
             delete: function(id) {
-                AppState.tasks = AppState.tasks.filter(t => t.id !== id);
-                this.save();
+                State.tasks = State.tasks.filter(t => t.id !== id);
+                this.saveAndRender();
+            },
+
+            saveAndRender: function() {
+                localStorage.setItem('aprovaEnemTasks', JSON.stringify(State.tasks));
+                this.render();
             },
 
             render: function() {
                 const list = document.getElementById('taskList');
                 list.innerHTML = '';
                 
-                const completedCount = AppState.tasks.filter(t => t.completed).length;
-                document.getElementById('taskCounter').innerText = `${completedCount}/${AppState.tasks.length}`;
-
-                if(AppState.tasks.length === 0) {
-                    list.innerHTML = `
-                        <div class="text-center py-12 text-slate-400 flex flex-col items-center bg-white rounded-2xl border border-dashed border-slate-300">
-                            <i class="fa-solid fa-list-check text-4xl mb-4 text-slate-200"></i>
-                            <p class="text-sm font-medium">Seu cronograma está vazio.</p>
-                            <p class="text-xs mt-1">Adicione matérias acima para começar.</p>
-                        </div>`;
+                if (State.tasks.length === 0) {
+                    list.innerHTML = '<p class="text-xs text-slate-400 text-center mt-4">Nenhuma tarefa. Adicione uma acima!</p>';
                     return;
                 }
 
-                AppState.tasks.forEach(task => {
-                    const isLate = !task.completed && UI.isUrgent(task.dueDate);
-                    const taskEl = document.createElement('div');
+                State.tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    li.className = `flex items-center justify-between p-3 rounded-xl border ${task.completed ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-200 shadow-sm'} transition-colors group`;
                     
-                    taskEl.className = `group bg-white border ${task.completed ? 'border-slate-100 opacity-70' : (isLate ? 'border-red-300 shadow-sm' : 'border-slate-200 shadow-sm')} p-4 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-indigo-300`;
-                    
-                    taskEl.innerHTML = `
-                        <div class="flex items-center gap-4 flex-1 overflow-hidden">
-                            <button onclick="TaskManager.toggle('${task.id}')" class="w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${task.completed ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 hover:border-indigo-400'}">
-                                <i class="fa-solid fa-check text-white text-xs ${task.completed ? 'block' : 'hidden'}"></i>
+                    li.innerHTML = `
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <button onclick="TaskManager.toggle(${task.id})" class="flex-shrink-0 w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${task.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 hover:border-blue-500 text-transparent'}">
+                                <i class="fa-solid fa-check text-[10px]"></i>
                             </button>
-                            <div class="flex flex-col truncate">
-                                <span class="text-[15px] font-semibold text-slate-700 truncate ${task.completed ? 'line-through text-slate-400' : ''}">${task.text}</span>
-                                ${task.dueDate ? `
-                                    <span class="text-xs font-bold mt-1 flex items-center gap-1 ${isLate ? 'text-red-500' : 'text-slate-400'}">
-                                        <i class="fa-regular fa-calendar"></i> ${UI.formatDateBR(task.dueDate)}
-                                    </span>
-                                ` : ''}
-                            </div>
+                            <span class="text-sm truncate ${task.completed ? 'line-through text-slate-400' : 'text-slate-700'}">${task.text}</span>
                         </div>
-                        
-                        <div class="flex items-center gap-2 shrink-0 border-t border-slate-100 pt-3 md:border-0 md:pt-0 mt-1 md:mt-0">
-                            <!-- Botão Mágico IA: Simulado -->
-                            <button onclick="AIManager.generateSimulado('${task.text}')" class="flex-1 md:flex-none text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white font-bold py-2 px-3 rounded-xl transition-colors flex items-center justify-center gap-1.5" title="Gerar questão sobre este tema">
-                                <i class="fa-solid fa-bolt"></i> Simulado
-                            </button>
-                            <button onclick="TaskManager.delete('${task.id}')" class="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-trash text-sm"></i>
-                            </button>
-                        </div>
+                        <button onclick="TaskManager.delete(${task.id})" class="text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                            <i class="fa-solid fa-trash-can text-sm"></i>
+                        </button>
                     `;
-                    list.appendChild(taskEl);
+                    list.appendChild(li);
                 });
             }
         };
 
-
         // ==========================================
-        // 4. MÓDULO POMODORO
+        // GERENCIADOR POMODORO
         // ==========================================
         const PomodoroManager = {
-            mode: 'work',
-            workTime: 25 * 60,
-            breakTime: 5 * 60,
             timeLeft: 25 * 60,
-            interval: null,
+            timerId: null,
             isRunning: false,
-            circumference: 2 * Math.PI * 46,
 
             init: function() {
-                document.getElementById('timerCircle').style.strokeDasharray = `${this.circumference} ${this.circumference}`;
-                this.checkPersisted();
-            },
-
-            updateUI: function() {
-                const m = Math.floor(this.timeLeft / 60).toString().padStart(2, '0');
-                const s = (this.timeLeft % 60).toString().padStart(2, '0');
-                document.getElementById('timerDisplay').innerText = `${m}:${s}`;
-                
-                const total = this.mode === 'work' ? this.workTime : this.breakTime;
-                const offset = this.circumference - (this.timeLeft / total) * this.circumference;
-                document.getElementById('timerCircle').style.strokeDashoffset = offset;
-            },
-
-            setMode: function(newMode) {
-                this.mode = newMode;
-                clearInterval(this.interval);
-                this.isRunning = false;
-                this.timeLeft = newMode === 'work' ? this.workTime : this.breakTime;
-                
-                localStorage.removeItem('pomoEnd');
-                localStorage.removeItem('pomoMode');
-
-                document.getElementById('timerStatus').innerText = newMode === 'work' ? "Foco Total" : "Descanso";
-                const btn = document.getElementById('playPauseBtn');
-                btn.innerHTML = '<i class="fa-solid fa-play ml-2"></i>';
-                
-                const circle = document.getElementById('timerCircle');
-                if(newMode === 'work') {
-                    btn.className = "w-24 h-24 rounded-3xl bg-indigo-600 text-white flex items-center justify-center text-4xl shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all transform active:scale-95 hover:scale-105";
-                    circle.classList.replace('text-emerald-500', 'text-indigo-500');
-                } else {
-                    btn.className = "w-24 h-24 rounded-3xl bg-emerald-500 text-white flex items-center justify-center text-4xl shadow-xl shadow-emerald-500/30 hover:bg-emerald-600 transition-all transform active:scale-95 hover:scale-105";
-                    circle.classList.replace('text-indigo-500', 'text-emerald-500');
-                }
-                this.updateUI();
-            },
-
-            toggle: function() {
-                if (this.isRunning) this.pause();
-                else this.start();
+                document.getElementById('btnPomoStart').addEventListener('click', () => this.start());
+                document.getElementById('btnPomoPause').addEventListener('click', () => this.pause());
+                document.getElementById('btnPomoReset').addEventListener('click', () => this.reset());
+                this.updateDisplay();
             },
 
             start: function() {
-                if(this.isRunning) return;
+                if (this.isRunning) return;
                 this.isRunning = true;
                 
-                const endTime = Date.now() + (this.timeLeft * 1000);
-                localStorage.setItem('pomoEnd', endTime);
-                localStorage.setItem('pomoMode', this.mode);
+                document.getElementById('btnPomoStart').classList.add('hidden');
+                document.getElementById('btnPomoPause').classList.remove('hidden');
 
-                document.getElementById('playPauseBtn').innerHTML = '<i class="fa-solid fa-pause"></i>';
-                document.getElementById('timerStatus').innerText = this.mode === 'work' ? "Estudando..." : "Relaxando...";
-
-                this.interval = setInterval(() => {
+                this.timerId = setInterval(() => {
                     this.timeLeft--;
-                    this.updateUI();
-                    if (this.timeLeft <= 0) this.finish();
+                    this.updateDisplay();
+                    
+                    if (this.timeLeft <= 0) {
+                        this.pause();
+                        alert("Pomodoro finalizado! Hora de uma pausa de 5 minutos.");
+                        this.timeLeft = 5 * 60; // Configura para pausa de 5 minutos
+                        this.updateDisplay();
+                    }
                 }, 1000);
             },
 
             pause: function() {
+                clearInterval(this.timerId);
                 this.isRunning = false;
-                clearInterval(this.interval);
-                localStorage.removeItem('pomoEnd');
-                document.getElementById('playPauseBtn').innerHTML = '<i class="fa-solid fa-play ml-2"></i>';
-                document.getElementById('timerStatus').innerText = "Pausado";
+                document.getElementById('btnPomoStart').classList.remove('hidden');
+                document.getElementById('btnPomoPause').classList.add('hidden');
             },
 
             reset: function() {
-                this.setMode(this.mode);
-            },
-
-            finish: function() {
                 this.pause();
-                document.getElementById('alarmSound').play().catch(e => console.log("Audio block", e));
+                this.timeLeft = 25 * 60;
+                this.updateDisplay();
+            },
+
+            updateDisplay: function() {
+                const minutes = Math.floor(this.timeLeft / 60);
+                const seconds = this.timeLeft % 60;
+                const displayStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                document.getElementById('pomodoroTimer').innerText = displayStr;
                 
-                if(this.mode === 'work') {
-                    UI.openModal('aiResultModal', 'Pomodoro Concluído!', 'Você completou um ciclo de foco. Parabéns!\nTire 5 minutos para beber água e alongar o corpo.');
-                    this.setMode('break');
-                } else {
-                    UI.openModal('aiResultModal', 'Fim do Intervalo', 'Hora de voltar aos estudos! Você consegue.');
-                    this.setMode('work');
-                }
-            },
-
-            checkPersisted: function() {
-                const end = localStorage.getItem('pomoEnd');
-                const mode = localStorage.getItem('pomoMode');
-                if (end && mode) {
-                    const remaining = Math.round((parseInt(end) - Date.now()) / 1000);
-                    if (remaining > 0) {
-                        this.setMode(mode);
-                        this.timeLeft = remaining;
-                        this.start();
-                    } else {
-                        localStorage.removeItem('pomoEnd');
-                        this.setMode(mode === 'work' ? 'break' : 'work');
-                    }
-                } else {
-                    this.updateUI();
-                }
-            }
-        };
-
-
-        // ==========================================
-        // 5. MÓDULO INTELIGÊNCIA ARTIFICIAL (Gemini)
-        // ==========================================
-        const AIManager = {
-            
-            // Verifica chave e autenticação antes de qualquer chamada
-            checkPrerequisites: function() {
-                if(!AppState.user) {
-                    alert("Você precisa estar logado para usar os recursos de Inteligência Artificial.");
-                    return false;
-                }
-                if(!CONFIG.GEMINI_API_KEY) {
-                    alert("Chave API do Gemini não configurada. Edite a variável CONFIG.GEMINI_API_KEY no código.");
-                    return false;
-                }
-                return true;
-            },
-
-            // --- 5.1 Chat Tutor ---
-            renderInitialMessage: function(userName) {
-                const container = document.getElementById('chatMessages');
-                container.innerHTML = '';
-                this.appendBubble('ai', `Olá, ${userName}! Sou o teu Tutor IA Premium especializado no ENEM. Podes pedir-me para resumir matérias, explicar fórmulas ou criar exercícios rápidos. Como posso ajudar agora?`);
-            },
-
-            appendBubble: function(sender, content, msgId = Date.now()) {
-                const container = document.getElementById('chatMessages');
-                const div = document.createElement('div');
-                div.id = `msg-${msgId}`;
-                
-                if(sender === 'user') {
-                    div.className = "flex items-start justify-end w-full";
-                    div.innerHTML = `
-                        <div class="bg-indigo-600 text-white p-4 rounded-2xl rounded-tr-sm shadow-md text-sm leading-relaxed max-w-[85%] font-medium">
-                            ${content}
-                        </div>
-                    `;
-                } else if (sender === 'ai') {
-                    div.className = "flex items-start max-w-[95%] md:max-w-[85%]";
-                    const formatted = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
-                    
-                    div.innerHTML = `
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white shrink-0 mr-3 shadow-md mt-1">
-                            <i class="fa-solid fa-sparkles text-xs"></i>
-                        </div>
-                        <div class="flex flex-col gap-1 w-full">
-                            <div class="bg-white border border-slate-200 p-4 rounded-2xl rounded-tl-sm shadow-sm text-slate-700 text-sm leading-relaxed font-medium msg-content">
-                                ${formatted}
-                            </div>
-                            <div class="flex gap-2 ml-1">
-                                <button onclick="AIManager.copyText(this)" class="text-xs text-slate-400 hover:text-indigo-600 font-bold transition-colors py-1 px-2"><i class="fa-regular fa-copy"></i> Copiar</button>
-                                <button onclick="AIManager.shareText(this)" class="text-xs text-slate-400 hover:text-indigo-600 font-bold transition-colors py-1 px-2"><i class="fa-solid fa-share-nodes"></i> Partilhar</button>
-                                <button onclick="AIManager.playTTS(this)" class="text-xs text-indigo-500 hover:text-indigo-700 font-bold transition-colors py-1 px-2 bg-indigo-50 rounded-md"><i class="fa-solid fa-volume-high"></i> Ouvir</button>
-                            </div>
-                        </div>
-                    `;
-                }
-                
-                container.appendChild(div);
-                container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-                return div;
-            },
-
-            sendMessage: async function() {
-                if(!this.checkPrerequisites()) return;
-
-                const input = document.getElementById('aiInput');
-                const text = input.value.trim();
-                if(!text) return;
-
-                this.appendBubble('user', text);
-                input.value = '';
-
-                // Loader
-                const loadingDiv = document.createElement('div');
-                loadingDiv.className = "flex items-center text-slate-400 text-xs ml-12 font-bold mb-4";
-                loadingDiv.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> O Tutor está a escrever...`;
-                document.getElementById('chatMessages').appendChild(loadingDiv);
-
-                try {
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-                    const payload = {
-                        contents: [{ parts: [{ text: text }] }],
-                        systemInstruction: { parts: [{ text: "És um professor especializado no ENEM. Responde em Português (Brasil). Sê claro, objetivo e usa tópicos quando necessário. Explica conceitos difíceis com analogias simples." }] }
-                    };
-
-                    const response = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
-                    const data = await response.json();
-                    loadingDiv.remove();
-
-                    if(data.candidates) {
-                        this.appendBubble('ai', data.candidates[0].content.parts[0].text);
-                    } else throw new Error("Erro na API");
-
-                } catch (error) {
-                    loadingDiv.remove();
-                    this.appendBubble('ai', "Desculpa, ocorreu um erro na conexão. Tenta novamente.");
-                }
-            },
-
-            // --- 5.2 Otimizar Cronograma ---
-            optimizeSchedule: async function() {
-                if(!this.checkPrerequisites()) return;
-                
-                if(AppState.tasks.length === 0) {
-                    UI.openModal('aiResultModal', 'Aviso', 'A sua lista de tarefas está vazia. Adicione algumas matérias primeiro!');
-                    return;
-                }
-
-                const btn = document.querySelector('button[onclick="AIManager.optimizeSchedule()"]');
-                UI.showLoadingBtn(btn, true);
-
-                const tasksText = AppState.tasks.map(t => `- ${t.text} (Concluído: ${t.completed ? 'Sim' : 'Não'})`).join('\n');
-                const prompt = `Analise a seguinte lista de estudos de um aluno que se prepara para o ENEM:\n${tasksText}\n\n1. Sugira qual matéria ele deve priorizar hoje (considerando a dificuldade típica do ENEM).\n2. Dê uma dica rápida de como estudar a matéria mais difícil da lista.\n3. Recomende uma pausa estratégica baseada na lista.\nResponda de forma direta e motivadora.`;
-
-                try {
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                    });
-                    const data = await response.json();
-                    
-                    if(data.candidates) {
-                        const htmlContent = data.candidates[0].content.parts[0].text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                        UI.openModal('aiResultModal', 'Análise do Cronograma', htmlContent);
-                    }
-                } catch(e) {
-                    alert("Erro ao otimizar cronograma.");
-                } finally {
-                    UI.showLoadingBtn(btn, false);
-                }
-            },
-
-            // --- 5.3 Simulado Rápido ---
-            generateSimulado: async function(tema) {
-                if(!this.checkPrerequisites()) return;
-
-                UI.openModal('aiResultModal', `Gerando Questão: ${tema}`, `<div class="flex items-center justify-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-500"></i></div>`);
-
-                try {
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-                    const prompt = `Crie UMA questão inédita de múltipla escolha estilo ENEM sobre o tema: "${tema}". \nSiga este formato rigorosamente:\n\n[Enunciado e texto de apoio]\n\na) [alternativa]\nb) [alternativa]\nc) [alternativa]\nd) [alternativa]\ne) [alternativa]\n\n**Gabarito Correto:** [letra]\n**Explicação:** [explicação breve do porquê]`;
-                    
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                    });
-                    const data = await response.json();
-                    
-                    if(data.candidates) {
-                        const textoRaw = data.candidates[0].content.parts[0].text;
-                        // Transformar gabarito em um bloco revelável (simples hack CSS)
-                        let htmlFormated = textoRaw.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                                 .replace(/(Gabarito Correto:|Explicação:)/g, '<br><span class="text-indigo-600 font-bold">$1</span>');
-                        UI.openModal('aiResultModal', `Simulado: ${tema}`, htmlFormated);
-                    }
-                } catch(e) {
-                    UI.openModal('aiResultModal', 'Erro', 'Não foi possível gerar a questão no momento.');
-                }
-            },
-
-            // --- 5.4 Text To Speech (TTS API) ---
-            playTTS: async function(btnElement) {
-                if(!this.checkPrerequisites()) return;
-                
-                // Pegar o texto da bolha associada
-                const bubble = btnElement.closest('.flex-col').querySelector('.msg-content');
-                const textToSpeak = bubble.innerText; // remove HTML tags
-                
-                const originalHtml = btnElement.innerHTML;
-                btnElement.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Gerando...';
-                btnElement.disabled = true;
-
-                try {
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${CONFIG.GEMINI_API_KEY}`;
-                    const payload = {
-                        contents: [{ parts: [{ text: textToSpeak }] }],
-                        generationConfig: {
-                            responseModalities: ["AUDIO"],
-                            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } } } // Aoede é uma voz feminina clara
-                        }
-                    };
-
-                    const response = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
-                    const data = await response.json();
-
-                    if(data.candidates && data.candidates[0].content.parts[0].inlineData) {
-                        const pcmBase64 = data.candidates[0].content.parts[0].inlineData.data;
-                        // O TTS Gemini retorna audio/L16 a 24000hz por default. Precisamos converter PCM p/ WAV
-                        const wavBlob = this.pcmToWav(pcmBase64, 24000);
-                        const audioUrl = URL.createObjectURL(wavBlob);
-                        
-                        const audioEl = document.getElementById('ttsAudio');
-                        audioEl.src = audioUrl;
-                        audioEl.play();
-                    } else {
-                        throw new Error("Áudio não retornado");
-                    }
-                } catch(e) {
-                    console.error(e);
-                    alert("Erro ao gerar áudio. Verifique a consola.");
-                } finally {
-                    btnElement.innerHTML = '<i class="fa-solid fa-circle-play"></i> Reouvir';
-                    btnElement.disabled = false;
-                }
-            },
-
-            // Helper para converter PCM16 do Gemini para Blob WAV tocável no navegador
-            pcmToWav: function(pcmBase64, sampleRate) {
-                const binaryString = atob(pcmBase64);
-                const pcmData = new Int16Array(binaryString.length / 2);
-                for (let i = 0; i < pcmData.length; i++) {
-                    pcmData[i] = (binaryString.charCodeAt(i * 2 + 1) << 8) | binaryString.charCodeAt(i * 2);
-                }
-                const wavBuffer = new ArrayBuffer(44 + pcmData.length * 2);
-                const view = new DataView(wavBuffer);
-                const writeString = (view, offset, string) => {
-                    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-                };
-                
-                writeString(view, 0, 'RIFF');
-                view.setUint32(4, 36 + pcmData.length * 2, true);
-                writeString(view, 8, 'WAVE');
-                writeString(view, 12, 'fmt ');
-                view.setUint32(16, 16, true);
-                view.setUint16(20, 1, true); // PCM
-                view.setUint16(22, 1, true); // 1 channel
-                view.setUint32(24, sampleRate, true);
-                view.setUint32(28, sampleRate * 2, true); // byte rate
-                view.setUint16(32, 2, true); // block align
-                view.setUint16(34, 16, true); // bits per sample
-                writeString(view, 36, 'data');
-                view.setUint32(40, pcmData.length * 2, true);
-                
-                let offset = 44;
-                for (let i = 0; i < pcmData.length; i++, offset += 2) {
-                    view.setInt16(offset, pcmData[i], true);
-                }
-                return new Blob([wavBuffer], { type: 'audio/wav' });
-            },
-
-            // --- Utilitários de Copiar / Partilhar ---
-            copyText: function(btnElement) {
-                const bubble = btnElement.closest('.flex-col').querySelector('.msg-content');
-                navigator.clipboard.writeText(bubble.innerText).then(() => {
-                    const originalHTML = btnElement.innerHTML;
-                    btnElement.innerHTML = '<i class="fa-solid fa-check text-green-500"></i> Copiado!';
-                    setTimeout(() => btnElement.innerHTML = originalHTML, 2000);
-                });
-            },
-            
-            copyModalContent: function() {
-                const text = document.getElementById('aiModalContent').innerText;
-                navigator.clipboard.writeText(text).then(() => alert('Copiado para a área de transferência!'));
-            },
-
-            shareText: function(btnElement) {
-                const bubble = btnElement.closest('.flex-col').querySelector('.msg-content');
-                if (navigator.share) {
-                    navigator.share({
-                        title: 'AprovaENEM Tutor IA',
-                        text: bubble.innerText
-                    }).catch(console.error);
-                } else {
-                    alert("A partilha nativa não é suportada neste navegador. Por favor, use o botão Copiar.");
-                }
+                // Opcional: Atualizar título da página se estiver rodando
+                if(this.isRunning) document.title = `(${displayStr}) AprovaENEM Foco`;
+                else document.title = `AprovaENEM Premium | Foco e IA`;
             }
         };
 
@@ -1026,15 +615,25 @@
         // INICIALIZAÇÃO DA APLICAÇÃO
         // ==========================================
         window.onload = () => {
-            UI.init();
             AuthManager.init();
             TaskManager.init();
             PomodoroManager.init();
             
-            // Listeners
-            document.getElementById('aiInput').addEventListener('keypress', (e) => {
-                if(e.key === 'Enter') AIManager.sendMessage();
+            // Listeners para Inputs (Enter key)
+            document.getElementById('aiInput').addEventListener('keydown', function(e) {
+                if(e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    AIManager.sendMessage();
+                }
             });
+
+            // Ajuste automático de altura do textarea do chat
+            document.getElementById('aiInput').addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+                if(this.value === '') this.style.height = 'auto';
+            });
+
             document.getElementById('newTaskInput').addEventListener('keypress', (e) => {
                 if(e.key === 'Enter') TaskManager.add();
             });
